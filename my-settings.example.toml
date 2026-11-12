@@ -1,0 +1,40 @@
+# Copy this file to my-settings.toml and fill it in there.
+# my-settings.toml stays on this computer. Do not commit it.
+
+# Printed on the report. Leave blank to use the name in the data file.
+business_name = ""
+
+# quarterly or monthly
+bas_period = "quarterly"
+
+# cash or accrual
+gst_basis = "accrual"
+
+# skip, preset, or custom
+# preset uses navy #021A54 and pink #FF85BB
+brand = "skip"
+
+# Optional free ABR authentication GUID for the supplier ABN check.
+# Register at https://abr.business.gov.au/Documentation/WebServiceRegistration
+# Leave this empty to skip the check. An ABR_GUID environment variable
+# is used instead when it is set. Never commit a real GUID.
+abr_guid = ""
+
+# Used when the data file does not name the period. Dates are YYYY-MM-DD.
+period_start = ""
+period_end = ""
+
+# Leave blank to be asked each time. Or set a path to your own export.
+data_file = ""
+
+[brand_colours]
+primary = ""
+accent = ""
+# File name inside my-brand/, such as logo.png. Leave blank for no logo.
+logo = ""
+
+[thresholds]
+# Leave blank to use the figures in config/rules.toml.
+gst_rounding_tolerance = ""
+tax_invoice_threshold_inclusive = ""
+capital_purchase_threshold = ""

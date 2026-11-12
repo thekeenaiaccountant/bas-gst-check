@@ -1,0 +1,23 @@
+title = "bas-gst-check"
+
+[extend]
+useDefault = true
+
+# ABR authentication GUIDs are 8-4-4-4-12 hex strings. The example settings
+# file keeps abr_guid empty. Any real GUID committed here is a leak.
+[[rules]]
+id = "abr-guid"
+description = "ABR web services authentication GUID"
+regex = '''(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'''
+
+[allowlist]
+description = "Empty example placeholder and generated report images"
+paths = [
+  '''docs/screenshot\.png''',
+  '''docs/walkthrough\.gif''',
+]
+regexTarget = "line"
+regexes = [
+  '''abr_guid\s*=\s*""''',
+  '''ABR_GUID\s*=\s*$''',
+]

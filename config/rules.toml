@@ -1,0 +1,148 @@
+# Thresholds and keyword hints for bas-gst-check.
+# These are review hints for a pre-lodgement check, not a private ruling.
+# Change a number here, or override it in my-settings.toml under [thresholds].
+
+[thresholds]
+# Flag a taxable line when the recorded GST differs from one-eleventh of the
+# GST-inclusive amount by more than this many dollars. Five cents lets ordinary
+# one-cent rounding through. It is not permission to lodge a wrong figure.
+# ATO rounding: https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/tax-invoices
+gst_rounding_tolerance = "0.05"
+
+# A tax invoice is required to claim a GST credit when the purchase costs
+# MORE THAN this GST-inclusive amount. $82.50 exactly does not need one.
+# https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/claiming-gst-credits/when-you-can-claim-a-gst-credit
+tax_invoice_threshold_inclusive = "82.50"
+
+# Capital items costing more than this GST-inclusive amount are flagged for
+# G10 when they are sitting on an expense account. The ATO allows items of
+# $1,000 or less to stay at G11 where capital purchases are not already
+# recorded separately and GST turnover is under $10 million.
+# https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/completing-your-bas-for-gst/complete-your-bas/step-3-purchases
+capital_purchase_threshold = "1000.00"
+
+# Seconds to wait for one ABR ABN lookup before giving up on that supplier.
+abr_timeout_seconds = 8
+
+# Phrases that usually mean no GST should be charged or claimed.
+# Matched on the description and the account name.
+
+[[no_gst_groups]]
+id = "bank"
+title = "Bank fees"
+why = "Account-keeping fees and similar bank charges are input-taxed financial supplies. They usually have no GST, so a GST credit is not claimable."
+source = "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/claiming-gst-credits/when-you-cannot-claim-a-gst-credit"
+phrases = ["bank fee", "bank charge", "account keeping", "account fee"]
+
+[[no_gst_groups]]
+id = "interest"
+title = "Interest"
+why = "Interest on a bank account is a financial supply. It is not subject to GST."
+source = "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/claiming-gst-credits/when-you-cannot-claim-a-gst-credit"
+phrases = ["interest"]
+
+[[no_gst_groups]]
+id = "wages"
+title = "Wages"
+why = "There is no GST on wages. A wage should not be coded as a taxable purchase and should not add to 1B."
+source = "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/claiming-gst-credits/when-you-cannot-claim-a-gst-credit"
+phrases = ["wage", "wages", "salary", "salaries"]
+
+[[no_gst_groups]]
+id = "super"
+title = "Superannuation"
+why = "Superannuation contributions are not subject to GST and should not add to 1B."
+source = "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/claiming-gst-credits/when-you-cannot-claim-a-gst-credit"
+phrases = ["superannuation", "super contribution", "super"]
+
+[[no_gst_groups]]
+id = "asic"
+title = "ASIC fee"
+why = "An ASIC annual review fee is a government charge and is usually not subject to GST. Confirm the fee type before leaving GST on it."
+source = "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/when-to-charge-gst-and-when-not-to/gst-free-sales/"
+phrases = ["asic", "annual review fee"]
+
+[[no_gst_groups]]
+id = "food"
+title = "Basic food"
+why = "Many basic foods (such as plain milk, bread, flour and uncooked rice) are GST-free. Prepared food, hot food and restaurant meals are often taxable, so read the description before changing the code."
+source = "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst/when-to-charge-gst-and-when-not-to/gst-free-sales/gst-free-food"
+phrases = ["plain milk", "fresh milk", "bread", "plain flour", "white rice", "uncooked rice", "plain sugar"]
+
+[lists]
+# Expenses that usually include GST when bought from a GST-registered supplier.
+usually_taxable_phrases = [
+  "rent",
+  "software",
+  "subscription",
+  "advertising",
+  "ads",
+  "stationery",
+  "office supplies",
+  "electricity",
+  "internet",
+  "fuel",
+  "accounting",
+  "contractor",
+  "repairs",
+  "hosting",
+  "printing",
+  "toner",
+  "telephone",
+  "phone",
+  "courier",
+  "design fee",
+  "workshop",
+  "consulting",
+  "strategy",
+  "licence",
+  "license",
+]
+
+# Description phrases that suggest a capital item (plant and equipment).
+capital_item_phrases = [
+  "laptop",
+  "computer",
+  "camera",
+  "vehicle",
+  "machinery",
+  "furniture",
+  "fitout",
+  "fit-out",
+]
+
+# Hire, lease and repairs are not capital purchases for G10.
+not_capital_phrases = ["hire", "lease", "rental", "repair", "repairs"]
+
+# Accounts that mean the line is already recorded as capital (draft G10).
+capital_account_phrases = [
+  "computer equipment",
+  "office equipment",
+  "plant and equipment",
+  "motor vehicle asset",
+  "fixed asset",
+  "fixed assets",
+  "assets",
+]
+
+# Used only when the file does not say sale or purchase.
+sale_account_phrases = ["sales", "service income", "interest income", "interest received", "revenue"]
+purchase_account_phrases = [
+  "expense",
+  "expenses",
+  "wages",
+  "rent",
+  "purchases",
+  "superannuation",
+  "advertising",
+  "insurance",
+  "repairs",
+  "electricity",
+  "telephone",
+  "software",
+  "courier",
+  "fuel",
+  "filing",
+  "amenities",
+  "accounting",
+]

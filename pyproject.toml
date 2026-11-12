@@ -1,0 +1,29 @@
+[project]
+name = "bas-gst-check"
+version = "1.0.0"
+description = "Local pre-lodgement check of Australian GST figures for a BAS period."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Pooja K" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+bas-gst-check = "bas_gst_check.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["bas_gst_check*"]
+
+[tool.setuptools.package-data]
+bas_gst_check = ["templates/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,74 @@
+date,type,contact,description,account,net_amount,gst_amount,tax_code,supplier_abn,reference
+2026-07-03,sale,Plover Shire Hall,Wayfinding concept,Sales,1800.00,180.00,GST on Income,,INV-2401
+2026-07-10,sale,Brindle Archive,Identity system,Sales,2400.00,240.00,GST on Income,,INV-2402
+2026-07-16,sale,Lowtide Gallery,Exhibition graphics,Sales,960.00,96.00,GST on Income,,INV-2403
+2026-07-22,sale,Amberline Publishing,Cover series,Sales,1500.00,150.00,GST on Income,,INV-2404
+2026-07-29,sale,Mallow Civic Hall,Annual report design,Sales,3200.00,320.00,GST on Income,,INV-2405
+2026-08-05,sale,Cobble Press,Poster set,Sales,640.00,64.00,GST on Income,,INV-2406
+2026-08-12,sale,Otterlane Rooms,Menu suite,Sales,880.00,88.00,GST on Income,,INV-2407
+2026-08-19,sale,Quince Market,Stall signage,Sales,420.00,42.00,GST on Income,,INV-2408
+2026-08-26,sale,Driftwood Hire,Fleet decals,Sales,1100.00,110.00,GST on Income,,INV-2409
+2026-09-02,sale,Paperwharf Rooms,Room guide,Sales,760.00,76.00,GST on Income,,INV-2410
+2026-09-09,sale,Plover Shire Hall,Phase two revisions,Sales,540.00,54.00,GST on Income,,INV-2411
+2026-09-16,sale,Brindle Archive,Reprint layout,Sales,300.00,30.00,GST on Income,,INV-2412
+2026-07-08,sale,Amberline Publishing,Export of printed posters,Sales,600.00,0.00,GST Free,,INV-2413
+2026-09-30,sale,Riverbend Bank,Interest received,Interest income,18.40,0.00,Input Taxed,,INV-2414
+2026-08-14,sale,Cobble Press,Credit for unused posters,Sales,-200.00,-20.00,GST on Income,,INV-2415
+2026-07-21,sale,Mallow Civic Hall,Brand workshop,Sales,2000.00,100.00,GST on Income,,INV-2416
+2026-08-03,sale,Riverbend Bank,Interest received,Interest income,40.00,4.00,GST on Income,,INV-2417
+2026-09-04,sale,Plover Shire Hall,Strategy intensive,Sales,1500.00,0.00,BAS Excluded,,INV-2418
+2026-06-18,sale,Lowtide Gallery,June leftover invoice,Sales,500.00,50.00,GST on Income,,INV-2419
+2026-10-06,sale,Amberline Publishing,October deposit,Sales,250.00,25.00,GST on Income,,INV-2420
+2026-07-01,purchase,Sable Commercial,Studio rent,Rent,2200.00,220.00,GST on Expenses,11111111111,INV-2421
+2026-07-02,purchase,Kindling Software,Design software subscription,Software,90.00,9.00,GST on Expenses,11111111111,INV-2422
+2026-07-06,purchase,Southbend Power,Electricity,Electricity,310.00,31.00,GST on Expenses,11111111111,INV-2423
+2026-07-06,purchase,Copperline Telecom,Studio internet,Telephone,120.00,12.00,GST on Expenses,11111111111,INV-2424
+2026-07-07,purchase,Nettle Insurance,Studio cover,Insurance,430.00,43.00,GST on Expenses,11111111111,INV-2425
+2026-07-09,purchase,Bramble Fuel,Van fuel,Motor vehicle expenses,85.00,8.50,GST on Expenses,11111111111,INV-2426
+2026-07-13,purchase,Fathom Accounting,Quarter prep,Accounting fees,600.00,60.00,GST on Expenses,11111111111,INV-2427
+2026-07-15,purchase,Cinder Repairs,Door repair,Repairs,275.00,27.50,GST on Expenses,11111111111,INV-2428
+2026-07-20,purchase,Loom Advertising,Poster boost,Advertising,360.00,36.00,GST on Expenses,11111111111,INV-2429
+2026-07-24,purchase,Parcel Counter,Sample delivery,Courier,48.00,4.80,GST on Expenses,11111111111,INV-2430
+2026-07-28,purchase,Lumen Stationery,Copy paper,Office expenses,75.00,7.50,GST on Expenses,11111111111,INV-2431
+2026-08-04,purchase,Lumen Stationery,Notebooks,Office expenses,40.00,4.00,GST on Expenses,11111111111,INV-2432
+2026-08-07,purchase,Sable Commercial,Studio rent,Rent,2200.00,220.00,GST on Expenses,11111111111,INV-2433
+2026-08-11,purchase,Southbend Power,Electricity,Electricity,280.00,28.00,GST on Expenses,11111111111,INV-2434
+2026-08-18,purchase,Fathom Accounting,Bookkeeping,Accounting fees,450.00,45.00,GST on Expenses,11111111111,INV-2435
+2026-08-21,purchase,Cinder Repairs,Window seal,Repairs,190.00,19.00,GST on Expenses,11111111111,INV-2436
+2026-08-25,purchase,Loom Advertising,Magazine listing,Advertising,210.00,21.00,GST on Expenses,11111111111,INV-2437
+2026-09-01,purchase,Sable Commercial,Studio rent,Rent,2200.00,220.00,GST on Expenses,11111111111,INV-2438
+2026-09-03,purchase,Copperline Telecom,Studio internet,Telephone,120.00,12.00,GST on Expenses,11111111111,INV-2439
+2026-09-08,purchase,Bramble Fuel,Van fuel,Motor vehicle expenses,96.00,9.60,GST on Expenses,11111111111,INV-2440
+2026-09-11,purchase,Parcel Counter,Poster tubes,Courier,70.00,7.00,GST on Expenses,,INV-2441
+2026-09-15,purchase,Lumen Stationery,Ink cartridges,Office expenses,66.00,6.60,GST on Expenses,11111111111,INV-2442
+2026-07-30,purchase,Harrow Equipment,Laptop for the studio,Computer equipment,1800.00,180.00,GST on Expenses,11111111111,INV-2443
+2026-08-13,purchase,Lumen Stationery,Studio stool,Office expenses,540.00,54.00,GST on Expenses,11111111111,INV-2444
+2026-07-31,purchase,Riverbend Bank,Account keeping fee,Bank fees,15.00,0.00,Input Taxed,,INV-2445
+2026-07-15,purchase,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,BAS Excluded,,INV-2446
+2026-07-29,purchase,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,BAS Excluded,,INV-2447
+2026-08-12,purchase,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,BAS Excluded,,INV-2448
+2026-08-26,purchase,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,BAS Excluded,,INV-2449
+2026-09-09,purchase,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,BAS Excluded,,INV-2450
+2026-09-23,purchase,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,BAS Excluded,,INV-2451
+2026-07-28,purchase,Staff Super,Superannuation contribution,Superannuation,304.00,0.00,BAS Excluded,,INV-2452
+2026-08-28,purchase,Staff Super,Superannuation contribution,Superannuation,304.00,0.00,BAS Excluded,,INV-2453
+2026-09-28,purchase,Staff Super,Superannuation contribution,Superannuation,304.00,0.00,BAS Excluded,,INV-2454
+2026-09-18,purchase,Companies Register,ASIC annual review fee,Filing fees,310.00,0.00,GST Free,,INV-2455
+2026-08-02,purchase,Creek Road Grocer,Plain flour and white rice,Staff amenities,36.00,0.00,GST Free,,INV-2456
+2026-08-31,purchase,Riverbend Bank,Account keeping fee,Bank fees,22.00,2.20,GST on Expenses,11111111111,INV-2457
+2026-09-23,purchase,Staff Wages,Back pay wages,Wages,800.00,80.00,GST on Expenses,11111111111,INV-2458
+2026-08-28,purchase,Staff Super,Superannuation contribution,Superannuation,200.00,20.00,GST on Expenses,11111111111,INV-2459
+2026-07-14,purchase,Companies Register,ASIC annual review fee,Filing fees,200.00,20.00,GST on Expenses,11111111111,INV-2460
+2026-08-16,purchase,Creek Road Grocer,Plain milk and bread,Staff amenities,20.00,2.00,GST on Expenses,11111111111,INV-2461
+2026-09-02,purchase,Kindling Software,Design software subscription,Software,90.00,0.00,GST Free,,INV-2462
+2026-09-22,purchase,Sable Commercial,Storage rent,Rent,400.00,0.00,GST Free,,INV-2463
+2026-08-20,purchase,Loom Advertising,Online ads,Advertising,250.00,0.00,BAS Excluded,,INV-2464
+2026-07-11,purchase,Lumen Stationery,Copy paper,Office expenses,50.00,5.00,GST on Expenses,11111111111,INV-2465
+2026-06-28,purchase,Lumen Stationery,June paper,Office expenses,30.00,3.00,GST on Expenses,11111111111,INV-2466
+2026-08-09,purchase,Cinder Repairs,Lock replacement,Repairs,500.00,20.00,GST on Expenses,11111111111,INV-2467
+2026-09-07,purchase,Harrow Equipment,Studio camera,General expenses,1600.00,160.00,GST on Expenses,11111111111,INV-2468
+2026-09-12,purchase,Parcel Counter,Large crate delivery,Courier,180.00,18.00,GST on Expenses,,INV-2469
+2026-07-27,purchase,Harrow Equipment,Drawing table,General expenses,300.00,30.00,GST on Expenses,22222222222,INV-2470
+2026-08-06,purchase,Kindling Software,Plugin licence,Software,150.00,15.00,GST on Expenses,33333333333,INV-2471
+2026-08-17,purchase,Bluegum Hosting,Site hosting,Software,140.00,14.00,GST on Expenses,44444444444,INV-2472
+2026-07-11,purchase,Lumen Stationery,Copy paper,Office expenses,50.00,5.00,GST on Expenses,11111111111,INV-2465

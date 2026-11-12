@@ -1,0 +1,17 @@
+my-settings.toml
+my-brand/
+my-templates/
+.local/
+output/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+dist/
+build/
+.DS_Store
+agent-tools/
+.playwright/
+playwright-report/
