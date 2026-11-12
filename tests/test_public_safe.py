@@ -27,6 +27,14 @@ def test_detectors_catch_private_patterns_and_ignore_fiction():
     assert scanner.find_in_text(valid)
 
 
+def test_commit_identity_trailers_are_not_project_content():
+    address = "studio" + "@" + "example.test"
+    trailer = "Co-authored-by: Example Person <" + address + ">"
+    assert scanner.find_in_text(trailer)
+    assert scanner.find_in_text(scanner._without_identity_trailers(trailer)) == []
+    assert scanner.find_in_text("Contact " + address)
+
+
 def test_repo_scan_is_clean():
     root = Path(__file__).resolve().parents[1]
     assert scanner.scan(root) == 0

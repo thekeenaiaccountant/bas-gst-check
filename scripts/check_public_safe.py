@@ -2,8 +2,10 @@
 """Scan the repo and git history for things that should not be published.
 
 Looks through tracked files, untracked files that are not gitignored, every
-commit's file contents, and commit messages. Git author lines are not scanned:
-they are the local git identity, not project content.
+commit's file contents, and commit messages. Git author headers are not
+scanned. Identity trailers in a commit message (Co-authored-by, Signed-off-by)
+are skipped too: this environment stamps them on every commit, and they are
+not project content. An email written in the message body is still a finding.
 
 Gitignored local settings, brand, templates and run history are skipped so a
 private ABR GUID in my-settings.toml is not treated as a published leak.
@@ -124,7 +126,7 @@ def scan(root: Path) -> int:
         findings.extend(_with_path(path.relative_to(root).as_posix(), text))
     commits = _commits(root)
     for commit in commits:
-        message = _git(root, "log", "-1", "--format=%B", commit)
+        message = _without_identity_trailers(_git(root, "log", "-1", "--format=%B", commit))
         findings.extend(_with_path(f"{commit[:10]}:message", message))
         listed = _git(root, "ls-tree", "-r", "--name-only", commit)
         for name in listed.splitlines():
@@ -143,6 +145,15 @@ def scan(root: Path) -> int:
     for finding in unique:
         print(f"{finding.kind}\t{finding.path}\t{finding.line}\t{finding.excerpt}")
     return 1 if unique else 0
+
+
+def _without_identity_trailers(message: str) -> str:
+    kept = []
+    for line in message.splitlines():
+        if re.match(r"(?i)^(co-authored-by|signed-off-by|helped-by):", line.strip()):
+            continue
+        kept.append(line)
+    return "\n".join(kept)
 
 
 def find_in_text(text: str) -> list[tuple[str, int, str]]:
