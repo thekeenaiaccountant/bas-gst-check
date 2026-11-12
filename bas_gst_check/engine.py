@@ -7,8 +7,18 @@ from dataclasses import dataclass, replace
 from datetime import date
 from pathlib import Path
 
-from bas_gst_check.abr import AbrOutcome, lookup_suppliers
+from bas_gst_check.abr import confirm_bill_abns
+from bas_gst_check.billread import read_bills
 from bas_gst_check.checks import run_checks
+from bas_gst_check.learning import (
+    confirmed_abns,
+    earlier_lines,
+    hints,
+    learning_path,
+    load_learning,
+    remember_hard,
+    save_learning,
+)
 from bas_gst_check.loaders import LoadedFile, load_transactions
 from bas_gst_check.models import Flag, Period, Summary
 from bas_gst_check.report import PRESET, render_html, write_csv
@@ -18,6 +28,7 @@ from bas_gst_check.settings import Settings, load_settings
 from bas_gst_check.summarise import summarise
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "fennel-street-workshop.json"
+EXAMPLE_BILLS = EXAMPLE.parent / "bills"
 MIME = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -49,6 +60,8 @@ def execute(
     period_end: date | None = None,
     brand: str | None = None,
     fetch=None,
+    bills_dir: Path | None = None,
+    readings_path: Path | None = None,
 ) -> RunResult:
     active_settings = settings or load_settings()
     active_rules = _rules_with_overrides(rules or load_rules(), active_settings)
@@ -67,8 +80,22 @@ def execute(
     business = active_settings.business_name or loaded.business_name or "This business"
     summary = summarise(loaded.transactions, active_rules)
     flags = run_checks(loaded.transactions, period, active_rules)
-    abr = lookup_suppliers(
+    bill_folder = _bills_folder(source, bills_dir)
+    learned = load_learning(learning_path(state))
+    bill_flags, hard_notes, to_confirm = read_bills(
+        bill_folder,
         loaded.transactions,
+        readings_path=readings_path,
+        confirmed=confirmed_abns(learned),
+        hints=hints(learned),
+    ) if bill_folder else ([], [], [])
+    flags.extend(bill_flags)
+    hard_lines = remember_hard(learned, hard_notes)
+    hard_lines.extend(earlier_lines(learned, {note.file_name for note in hard_notes}))
+    if hard_notes or learned.get("hard"):
+        save_learning(learning_path(state), learned)
+    abr = confirm_bill_abns(
+        to_confirm,
         active_rules,
         active_settings.abr_guid,
         state / "abr-cache.json",
@@ -101,6 +128,8 @@ def execute(
         logo_html=_logo(active_settings),
         brand_overrides=brand_overrides,
         period_warning=warning,
+        hard_lines=hard_lines,
+        bills_provided=bill_folder is not None,
     )
     output.mkdir(parents=True, exist_ok=True)
     html_path = output / "bas-gst-check.html"
@@ -116,6 +145,14 @@ def execute(
         business,
     )
     return RunResult(html_path, csv_path, [], summary, flags, abr.mode)
+
+
+def _bills_folder(source: Path, bills_dir: Path | None) -> Path | None:
+    if bills_dir is not None:
+        return bills_dir if bills_dir.is_dir() else None
+    if source.name.startswith("fennel-street") and EXAMPLE_BILLS.is_dir():
+        return EXAMPLE_BILLS
+    return None
 
 
 def _rules_with_overrides(rules: Rules, settings: Settings) -> Rules:

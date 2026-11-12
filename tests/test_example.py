@@ -20,8 +20,12 @@ EXPECTED = {
     "duplicate",
     "outside_period",
     "capital_split",
-    "missing_abn",
     "tax_invoice",
+    "bill_unreadable",
+    "bill_no_abn",
+    "bill_bad_checksum",
+    "bill_several_abns",
+    "bill_unmatched",
     "abn_not_found",
     "abn_cancelled",
     "abn_not_gst_registered",
@@ -54,6 +58,9 @@ def test_example_is_fiction_and_covers_every_check(tmp_path: Path):
     assert plain.errors == []
     assert plain.abr_mode == "off"
     assert not any(flag.code.startswith("abn_") for flag in plain.flags)
+    plain_html = (tmp_path / "plain" / "bas-gst-check.html").read_text(encoding="utf-8")
+    assert "ABN check is off" in plain_html
+    assert "set up ABN check" in plain_html
 
     checked = execute(
         EXAMPLE,

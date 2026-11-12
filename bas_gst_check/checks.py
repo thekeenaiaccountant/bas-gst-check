@@ -22,7 +22,11 @@ CHECK_ORDER = (
     "bas_excluded_taxable",
     "duplicate",
     "capital_split",
-    "missing_abn",
+    "bill_unreadable",
+    "bill_no_abn",
+    "bill_bad_checksum",
+    "bill_several_abns",
+    "bill_unmatched",
     "abn_not_found",
     "abn_cancelled",
     "abn_not_gst_registered",
@@ -167,17 +171,6 @@ def _line_checks(transaction: Transaction, period: Period | None, rules: Rules) 
             transaction,
         ))
     if _claims_credit(transaction) and transaction.inclusive > rules.tax_invoice_threshold and not no_gst_hit:
-        if not transaction.supplier_abn:
-            flags.append(_flag(
-                "missing_abn",
-                "No supplier ABN on a GST purchase",
-                "error",
-                f"This purchase claims a GST credit and the GST-inclusive amount is {money_text(transaction.inclusive)}, "
-                f"more than {money_text(rules.tax_invoice_threshold)}. There is no supplier ABN in the file. A tax invoice at this amount has to show one.",
-                "Add the supplier ABN from the tax invoice. The optional ABR check can then test it.",
-                GST_CREDIT,
-                transaction,
-            ))
         flags.append(_flag(
             "tax_invoice",
             "Tax invoice needed on file",

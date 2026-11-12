@@ -118,16 +118,17 @@ def main() -> int:
 
 def scan(root: Path) -> int:
     findings: list[Finding] = []
+    allowed = fictional_abns(root)
     files = list(_worktree_files(root))
     for path in files:
         text = _read_text(path)
         if text is None:
             continue
-        findings.extend(_with_path(path.relative_to(root).as_posix(), text))
+        findings.extend(_with_path(path.relative_to(root).as_posix(), text, allowed))
     commits = _commits(root)
     for commit in commits:
         message = _without_identity_trailers(_git(root, "log", "-1", "--format=%B", commit))
-        findings.extend(_with_path(f"{commit[:10]}:message", message))
+        findings.extend(_with_path(f"{commit[:10]}:message", message, allowed))
         listed = _git(root, "ls-tree", "-r", "--name-only", commit)
         for name in listed.splitlines():
             if _binary_name(name):
@@ -136,7 +137,7 @@ def scan(root: Path) -> int:
             if blob is None or b"\0" in blob:
                 continue
             text = blob.decode("utf-8", "replace")
-            findings.extend(_with_path(f"{commit[:10]}:{name}", text))
+            findings.extend(_with_path(f"{commit[:10]}:{name}", text, allowed))
     unique = _unique(findings)
     print("bas-gst-check public scan")
     print(f"files: {len(files)}")
@@ -156,8 +157,22 @@ def _without_identity_trailers(message: str) -> str:
     return "\n".join(kept)
 
 
-def find_in_text(text: str) -> list[tuple[str, int, str]]:
+def fictional_abns(root: Path) -> set[str]:
+    """Synthetic checksum-valid ABNs shipped on the made-up example bills."""
+    path = root / "examples" / "bills" / "fictional-abns.txt"
+    if not path.is_file():
+        return set()
+    found = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        digits = "".join(character for character in line if character.isdigit())
+        if len(digits) == 11:
+            found.add(digits)
+    return found
+
+
+def find_in_text(text: str, allowed_abns: set[str] | None = None) -> list[tuple[str, int, str]]:
     """Return (kind, line_number, excerpt) hits in one text."""
+    allowed = allowed_abns or set()
     hits: list[tuple[str, int, str]] = []
     patterns = _patterns()
     for line_number, line in enumerate(text.splitlines(), start=1):
@@ -165,8 +180,10 @@ def find_in_text(text: str) -> list[tuple[str, int, str]]:
             match = pattern.search(line)
             if not match:
                 continue
-            if kind == "abn" and not _abn_checksum(match.group(0)):
-                continue
+            if kind == "abn":
+                digits = "".join(character for character in match.group(0) if character.isdigit())
+                if digits in allowed or not _abn_checksum(match.group(0)):
+                    continue
             if kind == "name" and not _name_hit(match.group(0)):
                 continue
             excerpt = line.strip()
@@ -231,10 +248,10 @@ def _name_hit(raw: str) -> bool:
     return first.casefold() in FIRST_NAMES and last.casefold() in SURNAMES
 
 
-def _with_path(path: str, text: str) -> list[Finding]:
+def _with_path(path: str, text: str, allowed_abns: set[str] | None = None) -> list[Finding]:
     return [
         Finding(kind, path, line, excerpt)
-        for kind, line, excerpt in find_in_text(text)
+        for kind, line, excerpt in find_in_text(text, allowed_abns)
     ]
 
 

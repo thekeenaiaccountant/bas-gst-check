@@ -53,6 +53,8 @@ def render_html(
     logo_html: str,
     brand_overrides: dict[str, str],
     period_warning: str,
+    hard_lines: list[str] | None = None,
+    bills_provided: bool = False,
 ) -> str:
     css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")
     if brand_overrides:
@@ -75,6 +77,8 @@ def render_html(
         rules=rules,
         logo_html=logo_html,
         period_warning=period_warning,
+        hard_lines=hard_lines or [],
+        bills_provided=bills_provided,
     )
     template_path = Path.cwd() / "my-templates" / "report.html.tpl"
     if not template_path.is_file():
@@ -149,6 +153,8 @@ def _body(
     rules: Rules,
     logo_html: str,
     period_warning: str,
+    hard_lines: list[str],
+    bills_provided: bool,
 ) -> str:
     open_errors, fixed_still, ignored, invoices = _buckets(flags, notes)
     error_count = len(open_errors) + len(fixed_still)
@@ -169,6 +175,9 @@ def _body(
     parts.append(_since(comparison, summary))
     parts.append("<h2>Supplier ABN check</h2>")
     parts.append(_abr_panel(abr))
+    parts.append(_abn_help(bills_provided))
+    parts.append("<h2>What I found hard this time</h2>")
+    parts.append(_hard_panel(hard_lines))
     parts.append(f"<h2>{error_count} line{'s' if error_count != 1 else ''} to fix before lodgement</h2>")
     if not flags:
         parts.append(
@@ -308,6 +317,30 @@ def _since(comparison: Comparison, summary: Summary) -> str:
     )
 
 
+def _abn_help(bills_provided: bool) -> str:
+    where = (
+        "A bills folder was included in this run."
+        if bills_provided
+        else "No bills folder was included. Say where the bills are saved, for example 'check the bills in this folder'."
+    )
+    return (
+        '<section class="panel"><p><strong>How supplier ABNs are read.</strong> '
+        "The number has to be on the bill, next to the word ABN. Text PDFs work best on this computer. "
+        "Photos, scans, HEIC files and QR codes are clearest when Claude or Codex looks at the file. "
+        "A number is never guessed. If you have saved a free ABR GUID, that ABN is then checked only to see "
+        "if it is active and the supplier was registered for GST. "
+        f"{html.escape(where)} "
+        'Say "set up ABN check" any time to turn the ABR part on or off.</p></section>'
+    )
+
+
+def _hard_panel(lines: list[str]) -> str:
+    if not lines:
+        return '<section class="panel"><p>Nothing was marked hard on this run.</p></section>'
+    items = "".join(f"<li>{html.escape(line)}</li>" for line in lines[:12])
+    return f'<section class="panel"><ul class="clean">{items}</ul></section>'
+
+
 def _abr_panel(abr: AbrOutcome) -> str:
     notes = ""
     if abr.notes:
@@ -402,7 +435,7 @@ def _next(flags: list[Flag], notes: dict[str, Note], abr: AbrOutcome) -> str:
         "Ask a registered BAS or tax agent to confirm the figures. This report is not the lodgement.",
     ]
     if abr.mode == "off":
-        steps.insert(2, "The supplier ABN lookup is off. Add an ABR GUID only if you want those registrations checked. You can skip it.")
+        steps.insert(2, 'ABN check is off: say "set up ABN check" to turn it on.')
     items = "".join(f"<li>{html.escape(step)}</li>" for step in steps)
     return f'<section class="panel next"><ol>{items}</ol></section>'
 

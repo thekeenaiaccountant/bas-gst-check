@@ -13,7 +13,7 @@ If `my-settings.toml` does not exist, set it up before the first real check. Ask
 3. Is GST accounted for on a cash basis or an accrual basis?
 4. For the colours, do you want the navy (`#021A54`) and pink (`#FF85BB`) preset, your own colours and an optional logo, or no special branding?
 5. Should the first check use the made-up example, or a JSON or CSV export you already have?
-6. Do you have an ABR GUID? You can skip this. It is a free key from the Australian Business Register that lets the tool look up supplier ABNs. People register at https://abr.business.gov.au/Documentation/WebServiceRegistration
+6. Before that question, explain in one or two sentences: the ABN check reads the supplier's ABN off the bill itself, then, if they have a free ABR GUID, checks that the ABN is still active and the supplier was registered for GST. It catches GST claimed from a supplier who is not GST-registered, or whose ABN is cancelled. It is optional and free. Then ask, in these words: Do you already have an ABR GUID? (yes / no, help me get one / skip for now)
 
 Write the answers only into `my-settings.toml` (copy the shape from `my-settings.example.toml`).
 
@@ -24,12 +24,31 @@ Write the answers only into `my-settings.toml` (copy the shape from `my-settings
 - No branding: `brand = "skip"`.
 - Example data: leave `data_file` blank.
 - Their own export: put the path in `data_file`. If the file does not name the quarter, ask for the start and end dates and set `period_start` and `period_end`.
-- If they skip the GUID, leave `abr_guid` empty.
-- If they give you a GUID, store it only as `abr_guid` in `my-settings.toml`. Do not repeat the GUID in the chat, the report, a commit, the README, or any other file.
+- If they skip the GUID, leave `abr_guid` empty. The report will say: ABN check is off: say "set up ABN check" to turn it on.
+- If they say yes, ask them to paste the GUID. Do not ask them to use a terminal.
+- If they say "help me get one", give these steps and then stop until the email arrives. Tell them to come back and say "add my ABR GUID".
+  1. Open https://abr.business.gov.au/Documentation/WebServiceRegistration and read the short note that the service is free.
+  2. Accept the web services agreement. That leads to the form at https://abr.business.gov.au/Tools/WebServicesRegister
+  3. The form asks for: given name, family name, an email address (they prefer a shared inbox), website if they have one, applicant type, an ABN if the business has one, state or territory, and a short comment on how the service will be used. A good comment is "to check that supplier ABNs on bills are active and GST-registered before a BAS is lodged".
+  4. Submit the form. The ABR emails the GUID. It does not appear on the screen.
+- When they say "add my ABR GUID" or paste a GUID: check it is letters and numbers in the shape 8-4-4-4-12. If it is not, say it does not look right and ask them to paste it again. Do not repeat the value. Save it only by piping it to `python -m bas_gst_check save-guid` (stdin, not the command line) so it is written only into `my-settings.toml`. Then tell them, in the command's own words, whether the test lookup of the Tax Office's public ABN worked. Do not print the GUID. Do not commit `my-settings.toml`.
+- "set up ABN check" means run this GUID question again, even if the other settings already exist.
 
 Do not commit `my-settings.toml`, `my-brand/`, or `my-templates/`. Do not commit `.local/` or `output/`. Those can hold a private GUID or a real export.
 
 If `my-settings.toml` already exists, do not ask the questions again unless they want to change something.
+
+## Bills
+
+When they say "check the bills in this folder", or they have a folder of supplier bills:
+
+1. Read each PDF or photo yourself. You can read text PDFs, scanned PDFs, JPG, PNG and HEIC, and a QR code on a bill.
+2. Write only what you can see into `.local/bill-readings.json`, one item per file: `file`, `text` (the words on the page, including any line that starts with ABN), and `unreadable` true or false. Do not invent an ABN. Do not copy the image into the repository or into the JSON.
+3. Run `python -m bas_gst_check run --bills that/folder --readings .local/bill-readings.json` with their transaction file.
+4. If `.local/abn-learning.json` has a hint for that supplier, look in that place on the bill first.
+5. If they tell you the ABN from a bill, run `python -m bas_gst_check confirm-abn --supplier "Name" --abn "the digits"`. The tool saves it only when the checksum passes, in the gitignored learning log.
+
+Text PDFs are the easiest. Photos and scans are fine because you can see them. The local program, without you, can read text PDFs by itself and will say when a photo is unreadable.
 
 ## Running a check
 

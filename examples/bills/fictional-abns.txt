@@ -1,0 +1,5 @@
+# Synthetic ABNs that pass the checksum. Made up for fictional bills. Not real businesses.
+99000000000
+99000000032
+99000000064
+99000000096

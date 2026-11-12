@@ -79,23 +79,41 @@ The made-up quarter is `examples/fennel-street-workshop.json` (1 July 2026 to 30
 
 **Capital purchase, G10 or G11.** Equipment and similar assets over the threshold (default $1,000 including GST) that are sitting on an expense account. The ATO expects capital items costing more than $1,000 at G10 when capital purchases are not already recorded separately. Repairs, hires and leases are not capital. The draft leaves the line where the account put it and asks you to move it if it really is an asset.
 
-**No supplier ABN.** The purchase claims GST, it is over the tax-invoice threshold, and the file has no supplier ABN. A tax invoice at that amount has to show one.
+**The bill itself.** If you point at a folder of bills, each file is read for an ABN printed next to the word ABN. You get a plain warning when there is no ABN, the number fails the checksum, the page shows more than one ABN, the picture cannot be read, or the bill does not match a purchase. A number is never guessed.
 
-**ABN lookup** (only when a GUID is set). For purchases that claim GST and are over the threshold, the tool asks the free ABR service about the supplier ABN. It flags an ABN that is not found, an ABN that was already cancelled on the purchase date, and an entity that was not registered for GST on that date. A timeout is reported as "could not check", and the line is not treated as a failed ABN. Saved answers sit in `.local/` so the same ABN is not looked up on every run.
+**ABR confirmation** (only when a GUID is saved). For an ABN that was actually read from a bill, the tool asks the free ABR whether it is active and the supplier was GST-registered on that date. A timeout is reported as "could not check", and the line is not treated as a failed ABN. Saved answers sit in `.local/` so the same ABN is not looked up on every run.
 
 A tax code the tool does not recognise is left out of the draft totals and listed, so a strange code cannot quietly disappear.
 
 ## Optional: ABN check
 
-The supplier check is off until you add a GUID. Register a free one with the Australian Business Register: [Web services registration](https://abr.business.gov.au/Documentation/WebServiceRegistration). They email the GUID to you. In Claude Code or Codex, type:
+The ABN check does one job. It reads the supplier's ABN off the bill itself (the word ABN and the 11 digits, or a QR code that is that number). It does not guess. If you have saved a free ABR GUID, it then asks the Australian Business Register only whether that ABN is active and the supplier was registered for GST. That catches a GST credit claimed from a supplier who is not registered, or whose ABN is cancelled.
+
+It is optional. In Claude Code or Codex, type:
 
 ```text
-I have an ABR GUID. Save it for the ABN check.
+Do you already have an ABR GUID? (yes / no, help me get one / skip for now)
 ```
 
-You can skip this. With no GUID, the report says the lookup was not run, and it still lists GST purchases that have no ABN in the file.
+If you skip, the report keeps this note: ABN check is off: say "set up ABN check" to turn it on. You can type that any time.
 
-The GUID belongs only in `my-settings.toml` (or in an `ABR_GUID` environment variable). That settings file is gitignored. Do not paste the GUID into the example file, the README, or a commit. The example ABNs are fictional and fail the ABN checksum, so a live lookup of the example will not find a real supplier. The tests use saved fictional replies instead of calling the ABR.
+If you need a GUID, the app will walk you through the free ABR form. Start at the [web services registration page](https://abr.business.gov.au/Documentation/WebServiceRegistration), accept the agreement, and complete the form at [ABN Lookup registration](https://abr.business.gov.au/Tools/WebServicesRegister). The form asks for your name, an email address, the type of applicant, your state or territory, and a short note on how you will use it. The GUID arrives by email. Come back and type:
+
+```text
+add my ABR GUID
+```
+
+Paste the key when asked. It is saved only in `my-settings.toml` on this computer (that file is not committed). The app then checks the key with one lookup of the Tax Office's own public ABN and tells you, in plain words, whether it worked. The key is not repeated back to you.
+
+**Which bill files work best.** A text PDF is the surest: the program can read it on its own. Scanned PDFs, JPG and PNG photos, HEIC pictures from a phone, and QR codes on a bill are clearest when Claude or Codex looks at the page (they can read those files). Say:
+
+```text
+Check the bills in this folder
+```
+
+If a bill has no ABN, the number fails the checksum, the page shows several ABNs, the picture cannot be read, or the bill does not match a purchase, the report and the CSV say so in plain English. Nothing is guessed. Hard bills are remembered in `.local/abn-learning.json` on this computer, including an ABN you confirm by hand. The report has a short "What I found hard this time" section. Bill pictures are never stored in the project.
+
+The sample bills in `examples/bills/` are made up. Their ABNs pass the checksum so the check can be tried, and they are not real businesses. The tests never call the ABR. They replay saved fictional answers.
 
 ## Not tax advice
 

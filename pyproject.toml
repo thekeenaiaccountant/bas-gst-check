@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Pooja K" }]
-dependencies = []
+dependencies = ["pypdf>=5"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

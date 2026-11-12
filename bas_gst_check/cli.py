@@ -8,9 +8,11 @@ from datetime import date
 from pathlib import Path
 
 from bas_gst_check import __version__
+from bas_gst_check.abr import probe_guid
 from bas_gst_check.engine import EXAMPLE, execute
+from bas_gst_check.learning import confirm_supplier, learning_path
 from bas_gst_check.review_log import load_previous, set_note
-from bas_gst_check.settings import load_settings
+from bas_gst_check.settings import load_settings, save_abr_guid, settings_path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,6 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--brand", choices=["skip", "preset", "custom"])
     run_parser.add_argument("--output", default="output")
     run_parser.add_argument("--state", default=".local")
+    run_parser.add_argument("--bills", help="Folder of supplier bills (PDF or photo)")
+    run_parser.add_argument("--readings", help="JSON of text read from bills by Claude or Codex")
 
     note_parser = commands.add_parser("note", help="Mark a flag fixed, ignored, or open again")
     note_parser.add_argument("flag_id", help="The id from the latest report, such as F-01")
@@ -36,12 +40,28 @@ def main(argv: list[str] | None = None) -> int:
     note_parser.add_argument("--note", default="")
     note_parser.add_argument("--state", default=".local")
 
+    commands.add_parser("save-guid", help="Read an ABR GUID from stdin, save it, and test it")
+    commands.add_parser("check-guid", help="Test the saved ABR GUID without printing it")
+
+    confirm_parser = commands.add_parser("confirm-abn", help="Remember an ABN the user confirmed")
+    confirm_parser.add_argument("--supplier", required=True)
+    confirm_parser.add_argument("--abn", required=True)
+    confirm_parser.add_argument("--hint", default="")
+    confirm_parser.add_argument("--state", default=".local")
+
     args = parser.parse_args(argv)
     try:
         if args.command == "run":
             return _run(args)
         if args.command == "note":
             return _note(args)
+        if args.command == "save-guid":
+            return _save_guid()
+        if args.command == "check-guid":
+            return _check_guid()
+        if args.command == "confirm-abn":
+            print(confirm_supplier(learning_path(Path(args.state)), args.supplier, args.abn, args.hint))
+            return 0
     except (OSError, ValueError) as exc:
         print(exc)
         return 1
@@ -65,6 +85,8 @@ def _run(args: argparse.Namespace) -> int:
         period_start=start,
         period_end=end,
         brand=args.brand,
+        bills_dir=Path(args.bills) if args.bills else None,
+        readings_path=Path(args.readings) if args.readings else None,
     )
     if result.errors:
         print("The file could not be checked.")
@@ -82,6 +104,36 @@ def _run(args: argparse.Namespace) -> int:
             f"({result.summary.position})."
         )
     return 0
+
+
+def _save_guid() -> int:
+    raw = sys.stdin.read().strip()
+    if not raw:
+        print("No GUID was received. Paste it again, or say skip for now.")
+        return 1
+    try:
+        save_abr_guid(settings_path(), raw)
+    except ValueError as exc:
+        print(exc)
+        return 1
+    settings = load_settings()
+    _ok, message = probe_guid(settings.abr_guid)
+    print("Saved the GUID in my-settings.toml. It is not shown here.")
+    print(message)
+    return 0 if _ok else 1
+
+
+def _check_guid() -> int:
+    settings = load_settings()
+    if settings.abr_guid_rejected_shape:
+        print('ABN check is off: say "set up ABN check" to turn it on. The saved value does not look like an ABR GUID.')
+        return 1
+    if not settings.abr_guid:
+        print('ABN check is off: say "set up ABN check" to turn it on.')
+        return 1
+    ok, message = probe_guid(settings.abr_guid)
+    print(message)
+    return 0 if ok else 1
 
 
 def _choose_file(args: argparse.Namespace, configured: str) -> Path:

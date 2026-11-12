@@ -46,6 +46,30 @@ def guid_shape_ok(value: str) -> bool:
     return bool(GUID_SHAPE.fullmatch(value.strip()))
 
 
+def save_abr_guid(path: Path, value: str) -> None:
+    """Write the GUID only into my-settings.toml. Raises if the shape is wrong."""
+    cleaned = value.strip().strip('"').strip("'")
+    if not guid_shape_ok(cleaned):
+        raise ValueError(
+            "That does not look like an ABR GUID. It should be letters and numbers "
+            "in the 8-4-4-4-12 shape. Nothing was saved."
+        )
+    if path.is_file():
+        text = path.read_text(encoding="utf-8")
+    else:
+        example = Path(__file__).resolve().parents[1] / "my-settings.example.toml"
+        text = example.read_text(encoding="utf-8") if example.is_file() else ""
+    line = f'abr_guid = "{cleaned}"'
+    if re.search(r"(?m)^abr_guid\s*=", text):
+        text = re.sub(r"(?m)^abr_guid\s*=.*$", line, text, count=1)
+    else:
+        if text and not text.endswith("\n"):
+            text += "\n"
+        text += line + "\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def load_settings(path: Path | None = None) -> Settings:
     settings = Settings()
     file_path = path if path is not None else settings_path()

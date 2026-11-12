@@ -64,7 +64,7 @@ def test_missing_gst_and_bas_excluded():
     assert "bas_excluded_taxable" in codes([excluded])
 
 
-def test_outside_period_and_duplicate_and_capital_and_missing_abn():
+def test_outside_period_and_duplicate_and_capital():
     outside = tx(date=date(2026, 6, 18))
     first = tx(description="Copy paper", net=Decimal("50.00"), gst=Decimal("5.00"), row=1)
     second = tx(description="Copy paper", net=Decimal("50.00"), gst=Decimal("5.00"), row=2)
@@ -76,7 +76,8 @@ def test_outside_period_and_duplicate_and_capital_and_missing_abn():
     assert "duplicate" in codes([first, second])
     assert "capital_split" in codes([camera])
     assert "capital_split" not in codes([laptop])
-    assert "missing_abn" in codes([missing])
+    assert "missing_abn" not in codes([missing])
+    assert "tax_invoice" in codes([missing])
     assert "tax_invoice" not in codes([exact])
 
 
