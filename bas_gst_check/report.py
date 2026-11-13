@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import csv
 import html
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 from string import Template
 
@@ -61,6 +62,7 @@ def render_html(
     hard_lines: list[str] | None = None,
     bills_provided: bool = False,
     theme: str = "",
+    timezone_name: str = "Australia/Sydney",
 ) -> str:
     css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")
     if brand_overrides:
@@ -85,6 +87,7 @@ def render_html(
         period_warning=period_warning,
         hard_lines=hard_lines or [],
         bills_provided=bills_provided,
+        timezone_name=timezone_name,
     )
     template_path = Path.cwd() / "my-templates" / "report.html.tpl"
     if not template_path.is_file():
@@ -166,6 +169,7 @@ def _body(
     period_warning: str,
     hard_lines: list[str],
     bills_provided: bool,
+    timezone_name: str,
 ) -> str:
     open_errors, fixed_still, ignored, invoices = _buckets(flags, notes)
     error_count = len(open_errors) + len(fixed_still)
@@ -190,7 +194,7 @@ def _body(
     parts.append(_figures(summary, basis))
     parts.append(_split(summary))
     parts.append("<h2>Since last time</h2>")
-    parts.append(_since(comparison, summary))
+    parts.append(_since(comparison, timezone_name))
     parts.append("<h2>Supplier ABN check</h2>")
     parts.append(_abr_panel(abr))
     parts.append(_abn_help(bills_provided))
@@ -310,7 +314,7 @@ def _split(summary: Summary) -> str:
 """
 
 
-def _since(comparison: Comparison, summary: Summary) -> str:
+def _since(comparison: Comparison, timezone_name: str) -> str:
     if not comparison.has_previous:
         return (
             '<section class="panel"><p>This is the first run saved on this computer. '
@@ -339,7 +343,7 @@ def _since(comparison: Comparison, summary: Summary) -> str:
     new_count = len(comparison.new_flags)
     return (
         '<section class="panel">'
-        f"<p>Compared with the run on {html.escape(_pretty_stamp(comparison.previous_at))}.</p>"
+        f"<p>Compared with the run on {html.escape(format_local(comparison.previous_at, timezone_name))}.</p>"
         f"<p class='delta'>{html.escape('; '.join(bits))}.</p>"
         f"<p>{new_count} new flag{'s' if new_count != 1 else ''}. "
         f"{comparison.still_open} still open from last time. "
@@ -520,9 +524,20 @@ def render_error_html(business: str, errors: list[str], theme: str = "") -> str:
     )
 
 
-def _pretty_stamp(value: str) -> str:
+def format_local(value: str, timezone_name: str = "Australia/Sydney") -> str:
+    """Show a saved UTC instant in local time, such as 13 November 2026, 11:44am AEDT."""
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return value or "the previous run"
-    return parsed.strftime("%d %B %Y, %H:%M UTC")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    try:
+        zone = ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        zone = ZoneInfo("Australia/Sydney")
+    local = parsed.astimezone(zone)
+    hour = local.strftime("%I").lstrip("0") or "12"
+    clock = f"{hour}:{local.strftime('%M')}{local.strftime('%p').lower()}"
+    label = local.tzname() or "AEST"
+    return f"{local.day} {local.strftime('%B')} {local.year}, {clock} {label}"

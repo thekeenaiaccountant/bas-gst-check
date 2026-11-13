@@ -27,6 +27,9 @@ period_end = ""
 # Leave blank to be asked each time. Or set a path to your own export.
 data_file = ""
 
+# Time zone for "since last time". Leave blank for Australia/Sydney.
+timezone = ""
+
 [brand_colours]
 primary = ""
 accent = ""

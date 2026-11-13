@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import tomllib
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -35,6 +36,7 @@ class Settings:
     tolerance: Decimal | None = None
     tax_invoice_threshold: Decimal | None = None
     capital_threshold: Decimal | None = None
+    timezone: str = "Australia/Sydney"
     source: Path | None = None
 
 
@@ -98,6 +100,8 @@ def _apply_file(settings: Settings, raw: dict) -> None:
     settings.period_start = _date(raw.get("period_start"))
     settings.period_end = _date(raw.get("period_end"))
     settings.data_file = _text(raw.get("data_file"))
+    if _text(raw.get("timezone")):
+        settings.timezone = _text(raw.get("timezone"))
     colours = raw.get("brand_colours") or {}
     settings.primary = _text(colours.get("primary"))
     settings.accent = _text(colours.get("accent"))
@@ -137,6 +141,10 @@ def _validate(settings: Settings) -> None:
         and settings.period_start > settings.period_end
     ):
         raise ValueError("period_start is after period_end")
+    try:
+        ZoneInfo(settings.timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("timezone must be a name such as Australia/Sydney") from exc
 
 
 def _text(value: object) -> str:

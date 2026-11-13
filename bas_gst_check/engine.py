@@ -146,6 +146,7 @@ def execute(
         hard_lines=hard_lines,
         bills_provided=bill_folder is not None,
         theme="pooja" if active_settings.brand == "preset" else "",
+        timezone_name=active_settings.timezone,
     )
     output.mkdir(parents=True, exist_ok=True)
     html_path = output / "bas-gst-check.html"
