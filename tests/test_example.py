@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -32,6 +33,12 @@ EXPECTED = {
 }
 
 
+def _section_count(page: str, label: str) -> int:
+    match = re.search(re.escape(label) + r" \((\d+)\)", page)
+    assert match, label
+    return int(match.group(1))
+
+
 def fetch(url: str, timeout: float) -> str:
     abn = parse_qs(urlparse(url).query)["abn"][0]
     return FIXTURES[abn]
@@ -61,6 +68,9 @@ def test_example_is_fiction_and_covers_every_check(tmp_path: Path):
     plain_html = (tmp_path / "plain" / "bas-gst-check.html").read_text(encoding="utf-8")
     assert "ABN check is off" in plain_html
     assert "set up ABN check" in plain_html
+    assert "Couldn't check GST registration" in plain_html
+    assert "Not registered for GST, but GST was claimed" not in plain_html
+    assert _section_count(plain_html, "ABN not found") >= 1
 
     checked = execute(
         EXAMPLE,
@@ -79,6 +89,13 @@ def test_example_is_fiction_and_covers_every_check(tmp_path: Path):
     assert "made-up example" in html
     assert guid() not in html
     assert "checksum" in html
+    assert _section_count(html, "Not registered for GST, but GST was claimed") >= 1
+    assert _section_count(html, "ABN not found") >= 1
+    assert _section_count(html, "ABN found and GST registered") >= 1
+    assert '<details class="fold good">' in html
+    assert '<details class="fold other">' in html
+    assert 'class="stamp"' not in html
+    assert 'class="disclaimer"' not in html
     csv_text = (tmp_path / "checked" / "flagged-items.csv").read_text(encoding="utf-8")
     assert "flag_id" in csv_text
     assert guid() not in csv_text

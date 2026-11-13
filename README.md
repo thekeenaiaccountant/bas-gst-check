@@ -48,12 +48,15 @@ Use the id from the report you are looking at. The same line keeps the same numb
 
 ## What the report shows
 
-- **G1** total sales, **1A** GST on sales, **1B** GST on purchases, and whether the net GST is payable or refundable.
-- **G10** and **G11**, so capital purchases are visible. Simpler BAS (GST turnover under $10 million) does not lodge those two labels, but the split still keeps the file tidy.
-- Each flagged line, in plain English: why it was flagged, and a suggested fix.
-- A **since last time** panel, once you have run it more than once.
-- Your fixed and ignored notes.
-- Next steps, and the ATO pages the rules come from.
+The picture above is the made-up example with the made-up ABR answers, so each supplier section has a row. A run without a GUID does not call the ABR. It says once that GST registration could not be checked.
+
+- The business, the period, and one row for **G1**, **1A**, **1B** and net GST. **G10** and **G11** sit on the line under that.
+- **Not registered for GST, but GST was claimed.** The ABR says there is no GST registration, or the ABN is cancelled, and the file still has GST on that bill.
+- **ABN not found.** No ABN on the bill, or the page could not be read.
+- **ABN found and GST registered.** The count only. Open it if you want the list.
+- Without a GUID, the first section is **Couldn't check GST registration**.
+- Everything else (the one-eleventh check, GST-free wording, duplicates, dates, tax invoices over $82.50, capital purchases, unknown codes, and since last time) is under **Other checks**, folded shut.
+- One footer line: not tax advice, GST part of the BAS only, and do not email this folder.
 
 The draft uses the amounts in the file. It does not silently rewrite them. GST adjustments such as bad debts or private use are not included. Cash basis means the file should be amounts you received or paid in the period. Accrual basis means invoices and bills for the period. The tool does not invent a second date.
 
@@ -130,7 +133,7 @@ Paste the key when asked. It is saved only in `my-settings.toml` on this compute
 Check the bills in this folder
 ```
 
-If a bill has no ABN, the number fails the checksum, the page shows several ABNs, the picture cannot be read, or the bill does not match a purchase, the report and the CSV say so in plain English. Nothing is guessed. Hard bills are remembered in `.local/abn-learning.json` on this computer, including an ABN you confirm by hand. The report has a short "What I found hard this time" section. Bill pictures are never stored in the project.
+If a bill has no ABN, the number fails the checksum, the page shows several ABNs, the picture cannot be read, or the bill does not match a purchase, the report says so in the ABN sections, and the CSV lists the same lines. Nothing is guessed. Hard bills are remembered in `.local/abn-learning.json` on this computer, including an ABN you confirm by hand. Bill pictures are never stored in the project.
 
 The sample bills in `examples/bills/` are made up. Their ABNs pass the checksum so the check can be tried, and they are not real businesses. The tests never call the ABR. They replay saved fictional answers.
 

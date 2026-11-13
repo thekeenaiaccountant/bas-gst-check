@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import csv
 import html
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pathlib import Path
 from string import Template
 
-from bas_gst_check.abr import AbrOutcome
+from bas_gst_check.abr import AbrOutcome, SupplierLine
 from bas_gst_check.checks import period_label
 from bas_gst_check.models import Comparison, Flag, Note, Period, Summary, Transaction
 from bas_gst_check.money import money_text
@@ -152,6 +154,112 @@ def write_csv(path: Path, flags: list[Flag], notes: dict[str, Note]) -> None:
             })
 
 
+@dataclass(frozen=True)
+class SupplierRow:
+    date: str
+    supplier: str
+    amount: str
+    gst: str
+    abn: str
+    action: str
+
+
+MISSING_BILL_CODES = frozenset({
+    "bill_no_abn",
+    "bill_unreadable",
+    "bill_bad_checksum",
+    "bill_several_abns",
+})
+RED_FLAG = {"cancelled": "abn_cancelled", "not_registered": "abn_not_gst_registered"}
+ROW_ACTION = {
+    "cancelled": "Take the GST out of 1B. The ABR shows this ABN as cancelled.",
+    "not_registered": "Take the GST out of 1B. The ABR shows no GST registration on this date.",
+    "not_found": "The ABR has no record of this ABN. Check the digits before claiming GST.",
+    "unchecked": "ABN is on the bill. GST registration was not checked.",
+    "gst_registered": "ABN is active and the supplier was GST-registered on this date.",
+    "could_not_check": "The ABR did not answer. No conclusion was drawn.",
+    "bill_no_abn": "No ABN on the bill. Ask the supplier, or leave the GST out of 1B.",
+    "bill_unreadable": "This bill could not be read. Ask Claude or Codex to read it, or send a text PDF.",
+    "bill_bad_checksum": "The ABN on the bill fails the checksum. Read the digits again.",
+    "bill_several_abns": "This bill shows more than one ABN. Say which one is the supplier's.",
+    "bill_unmatched": "This bill did not match a purchase in the file. Check the supplier, date and total.",
+}
+
+
+def section_heading(kind: str, count: int, checked: bool) -> str:
+    names = {
+        "problem": (
+            "Not registered for GST, but GST was claimed"
+            if checked
+            else "Couldn't check GST registration"
+        ),
+        "missing": "ABN not found",
+        "registered": "ABN found and GST registered",
+    }
+    try:
+        name = names[kind]
+    except KeyError as exc:
+        raise ValueError(f"unknown supplier section {kind}") from exc
+    return f"{name} ({count})"
+
+
+def supplier_sections(
+    flags: list[Flag],
+    abr: AbrOutcome,
+    notes: dict[str, Note] | None = None,
+) -> tuple[list[SupplierRow], list[SupplierRow], list[SupplierRow], bool]:
+    """Group bill lines into not-registered, ABN missing, and GST-registered."""
+    remembered = notes or {}
+    checked = abr.mode == "on"
+    problem: list[SupplierRow] = []
+    missing: list[SupplierRow] = []
+    registered: list[SupplierRow] = []
+    if checked:
+        covered_missing = {line.file_name for line in abr.lines if line.outcome == "not_found"}
+        for line in abr.lines:
+            if line.outcome in RED_FLAG and _gst_claimed(line.transaction):
+                problem.append(_row_from_line(line, flags, remembered))
+            elif line.outcome == "not_found":
+                missing.append(_row_from_line(line, flags, remembered))
+            elif line.outcome == "gst_registered":
+                registered.append(_row_from_line(line, flags, remembered))
+        for flag in flags:
+            if flag.code == "abn_not_found" and flag.detail_key not in covered_missing:
+                missing.append(_row_from_flag(flag, remembered))
+    else:
+        for line in abr.lines:
+            if line.abn:
+                problem.append(_row_from_line(line, flags, remembered, ROW_ACTION["unchecked"]))
+    for flag in flags:
+        if flag.code in MISSING_BILL_CODES:
+            missing.append(_row_from_flag(flag, remembered))
+    return problem, missing, registered, checked
+
+
+def other_flags(flags: list[Flag], abr: AbrOutcome) -> list[Flag]:
+    """Flags that are not already a row in the three supplier sections."""
+    shown_red: set[int] = set()
+    if abr.mode == "on":
+        for line in abr.lines:
+            if line.outcome in RED_FLAG and _gst_claimed(line.transaction) and line.transaction is not None:
+                shown_red.add(id(line.transaction))
+    hidden = set(MISSING_BILL_CODES)
+    hidden.add("abn_not_found")
+    kept: list[Flag] = []
+    for flag in flags:
+        if flag.code in hidden:
+            continue
+        if (
+            flag.code in {"abn_cancelled", "abn_not_gst_registered"}
+            and flag.transaction is not None
+            and id(flag.transaction) in shown_red
+        ):
+            continue
+        kept.append(flag)
+    return kept
+
+
+
 def _body(
     *,
     business: str,
@@ -171,88 +279,32 @@ def _body(
     bills_provided: bool,
     timezone_name: str,
 ) -> str:
-    open_errors, fixed_still, ignored, invoices = _buckets(flags, notes)
-    error_count = len(open_errors) + len(fixed_still)
+    problem, missing, registered, checked = supplier_sections(flags, abr, notes)
     parts = [
         '<main class="wrap">',
         _header(business, period, basis, bas_period, logo_html),
-        _disclaimer(),
+        _figures(summary),
     ]
-    if fictional:
-        parts.append(
-            '<p class="example-banner">These figures are made-up example data for a fictional business. They are not a real client and not a real BAS.</p>'
-        )
     if period_warning:
-        parts.append(f'<p class="example-banner">{html.escape(period_warning)}</p>')
+        parts.append(f'<p class="quiet">{html.escape(period_warning)}</p>')
     if summary.left_out:
+        noun = "line was" if summary.left_out == 1 else "lines were"
         parts.append(
-            '<section class="disclaimer warn"><strong>These draft figures are incomplete.</strong> '
-            f"<p>{summary.left_out} line{'s were' if summary.left_out != 1 else ' was'} left out because the tax code "
-            "or the sale/purchase side was not recognised. This is not a nil BAS. "
-            "Do not lodge these numbers until those lines are coded.</p></section>"
+            f'<p class="quiet">{summary.left_out} {noun} left out because the tax code or the sale/purchase side '
+            "was not recognised. This is not a nil BAS.</p>"
         )
-    parts.append(_figures(summary, basis))
-    parts.append(_split(summary))
-    parts.append("<h2>Since last time</h2>")
-    parts.append(_since(comparison, timezone_name))
-    parts.append("<h2>Supplier ABN check</h2>")
-    parts.append(_abr_panel(abr))
-    parts.append(_abn_help(bills_provided))
-    parts.append("<h2>What I found hard this time</h2>")
-    parts.append(_hard_panel(hard_lines))
-    parts.append(f"<h2>{error_count} line{'s' if error_count != 1 else ''} to fix before lodgement</h2>")
-    if not flags:
+    if not checked:
         parts.append(
-            '<section class="panel"><p>Nothing in this file was flagged. The draft figures are only as good as the export. '
-            "Confirm them with a registered BAS or tax agent. This check does not see adjustments, private-use splits, or documents that are not in the file.</p></section>"
+            '<p class="guidline">GST registration could not be checked. '
+            'ABN check is off: say "set up ABN check" to turn it on.</p>'
         )
-    else:
-        if fixed_still:
-            parts.append("<h3>Marked fixed, still in the file</h3>")
-            parts.extend(_card(flag, notes.get(flag.fingerprint)) for flag in fixed_still)
-        if open_errors:
-            parts.extend(_card(flag, notes.get(flag.fingerprint)) for flag in open_errors)
-        if not open_errors and not fixed_still:
-            parts.append('<section class="panel"><p>No likely mistakes are still open. Review items, if any, are below.</p></section>')
-        parts.append(_invoice_section(invoices, notes))
-        if ignored:
-            parts.append(f"<h2>Ignored ({len(ignored)})</h2>")
-            parts.extend(_card(flag, notes.get(flag.fingerprint)) for flag in ignored)
-    parts.append("<h2>Next steps</h2>")
-    parts.append(_next(flags, notes, abr))
-    parts.append("<h2>How the draft was added up</h2>")
-    parts.append(_method(summary, rules, basis))
-    parts.append("<h2>Sources</h2>")
-    parts.append(_sources())
-    parts.append(
-        '<footer class="end"><p>This checker sends nothing. It keeps the run, your notes and any ABR answers in a local folder. '
-        "A photo or PDF that Claude or Codex reads is sent to that AI company. "
-        "Do not zip this folder and email it. It does not lodge a BAS.</p></footer>"
-    )
+    parts.append(_status("bad", "problem", problem, checked))
+    parts.append(_status("warn", "missing", missing, checked))
+    parts.append(_fold("good", "registered", registered, checked, _table(registered)))
+    parts.append(_other(flags, notes, comparison, abr, rules, basis, hard_lines, bills_provided, timezone_name))
+    parts.append(_footer(fictional))
     parts.append("</main>")
     return "\n".join(parts)
-
-
-def _buckets(
-    flags: list[Flag], notes: dict[str, Note]
-) -> tuple[list[Flag], list[Flag], list[Flag], list[Flag]]:
-    open_errors: list[Flag] = []
-    fixed_still: list[Flag] = []
-    ignored: list[Flag] = []
-    invoices: list[Flag] = []
-    for flag in flags:
-        note = notes.get(flag.fingerprint)
-        if note and note.status == "ignored":
-            ignored.append(flag)
-            continue
-        if note and note.status == "fixed":
-            fixed_still.append(flag)
-            continue
-        if flag.code == "tax_invoice":
-            invoices.append(flag)
-            continue
-        open_errors.append(flag)
-    return open_errors, fixed_still, ignored, invoices
 
 
 def _header(business: str, period: Period, basis: str, bas_period: str, logo_html: str) -> str:
@@ -262,71 +314,144 @@ def _header(business: str, period: Period, basis: str, bas_period: str, logo_htm
 <header class="top">
   <div>
     {logo_html}
-    <p class="eyebrow"><span class="mark">GST</span> part of the BAS only</p>
     <h1>{html.escape(business)}</h1>
-    <p class="lede">{html.escape(period_label(period.start, period.end))} · {rhythm} · {basis_label} · Prepared on this computer</p>
+    <p class="lede">{html.escape(period_label(period.start, period.end))} · {rhythm} · {basis_label}</p>
   </div>
-  <div class="stamp">Check<br>only<br>not lodged</div>
+  <p class="tag">Check only</p>
 </header>
 """
 
 
-def _disclaimer() -> str:
-    return (
-        '<section class="disclaimer"><strong>Not tax advice.</strong> '
-        "<p>This is a pre-lodgement checker for the GST part of the BAS only. It does not lodge, pay, or approve a BAS. "
-        "Confirm the figures with a registered BAS or tax agent before you lodge. "
-        "Do not zip this folder and email it. It can hold your file, your GUID and notes that should stay on this computer.</p></section>"
-    )
-
-
-def _figures(summary: Summary, basis: str) -> str:
+def _figures(summary: Summary) -> str:
     unusable = summary.left_out and summary.g1 == 0 and summary.gst_on_sales == 0 and summary.gst_on_purchases == 0
     if unusable:
         position = "Not a usable BAS"
-        net_class = "payable"
+        position_class = ""
+        net = money_text(summary.net)
     else:
         position = {"payable": "Payable", "refundable": "Refundable", "nil": "Nil"}[summary.position]
-        net_class = summary.position
-    net = money_text(abs(summary.net)) if summary.position != "nil" and not unusable else money_text(summary.net)
-    basis_note = (
-        "Cash basis: only money received or paid in this period belongs here."
-        if basis == "cash"
-        else "Accrual basis: invoices and bills for this period belong here."
-    )
+        position_class = " good" if summary.position == "refundable" else ""
+        net = money_text(abs(summary.net)) if summary.position != "nil" else money_text(summary.net)
     return f"""
 <section class="figures" aria-label="Draft BAS summary">
-  <article class="figure"><span>G1 total sales</span><strong>{money_text(summary.g1)}</strong><em>GST-inclusive</em></article>
-  <article class="figure"><span>1A GST on sales</span><strong>{money_text(summary.gst_on_sales)}</strong><em>As recorded</em></article>
-  <article class="figure"><span>1B GST on purchases</span><strong>{money_text(summary.gst_on_purchases)}</strong><em>As recorded</em></article>
-  <article class="figure {net_class}"><span>Net GST</span><strong>{net}</strong><em>{position}</em></article>
+  <article class="figure"><span>G1 total sales</span><strong>{money_text(summary.g1)}</strong></article>
+  <article class="figure"><span>1A GST on sales</span><strong>{money_text(summary.gst_on_sales)}</strong></article>
+  <article class="figure"><span>1B GST on purchases</span><strong>{money_text(summary.gst_on_purchases)}</strong></article>
+  <article class="figure"><span>Net GST</span><strong>{net}</strong><em class="{position_class.strip()}">{position}</em></article>
 </section>
-<p class="example-banner">Do not copy these onto the BAS until the red lines are cleared. {html.escape(basis_note)} These totals are only right if the file is already the list you lodge on that basis.</p>
+<p class="splitline"><span>G10 capital</span> <strong>{money_text(summary.g10)}</strong> · <span>G11 non-capital</span> <strong>{money_text(summary.g11)}</strong></p>
 """
 
 
-def _split(summary: Summary) -> str:
-    return f"""
-<section class="split">
-  <div><span>G10 capital purchases</span><strong>{money_text(summary.g10)}</strong><em>From capital accounts in the file</em></div>
-  <div><span>G11 non-capital purchases</span><strong>{money_text(summary.g11)}</strong><em>Other purchases, excluding BAS Excluded</em></div>
-</section>
-"""
+def _status(tone: str, kind: str, rows: list[SupplierRow], checked: bool) -> str:
+    return (
+        f'<section class="status {tone}">'
+        f"<h2>{section_heading(kind, len(rows), checked)}</h2>"
+        f"{_table(rows)}"
+        "</section>"
+    )
+
+
+def _fold(tone: str, kind: str, rows: list[SupplierRow], checked: bool, inner: str) -> str:
+    return (
+        f'<details class="fold {tone}">'
+        f"<summary>{section_heading(kind, len(rows), checked)}</summary>"
+        f'<div class="inside">{inner}</div>'
+        "</details>"
+    )
+
+
+def _table(rows: list[SupplierRow]) -> str:
+    if not rows:
+        return '<p class="empty">None in this file.</p>'
+    body = "".join(
+        "<tr>"
+        f"<td>{html.escape(row.date)}</td>"
+        f"<td>{html.escape(row.supplier)}</td>"
+        f"<td class='num'>{html.escape(row.amount)}</td>"
+        f"<td class='num'>{html.escape(row.gst)}</td>"
+        f"<td class='abn'>{html.escape(row.abn)}</td>"
+        f"<td>{html.escape(row.action)}</td>"
+        "</tr>"
+        for row in rows
+    )
+    return (
+        '<div class="table-wrap"><table><thead><tr>'
+        "<th>Date</th><th>Supplier</th><th class='num'>Amount</th>"
+        "<th class='num'>GST in the file</th><th>ABN</th><th>What to do</th>"
+        f"</tr></thead><tbody>{body}</tbody></table></div>"
+    )
+
+
+def _other(
+    flags: list[Flag],
+    notes: dict[str, Note],
+    comparison: Comparison,
+    abr: AbrOutcome,
+    rules: Rules,
+    basis: str,
+    hard_lines: list[str],
+    bills_provided: bool,
+    timezone_name: str,
+) -> str:
+    kept = other_flags(flags, abr)
+    pending = [line for line in abr.lines if line.outcome == "could_not_check"]
+    count = len(kept) + len(pending)
+    groups: list[tuple[str, list[Flag]]] = []
+    index: dict[str, int] = {}
+    for flag in kept:
+        slot = index.get(flag.title)
+        if slot is None:
+            index[flag.title] = len(groups)
+            groups.append((flag.title, [flag]))
+        else:
+            groups[slot][1].append(flag)
+    blocks = [_since(comparison, timezone_name)]
+    if not bills_provided:
+        blocks.append("<p>No bills folder was included, so no supplier ABN was read from a document.</p>")
+    if hard_lines:
+        noun = "bill was" if len(hard_lines) == 1 else "bills were"
+        blocks.append(f"<p>{len(hard_lines)} hard {noun} saved on this computer for next time.</p>")
+    if not kept and not pending:
+        blocks.append('<p class="empty">Nothing else was flagged.</p>')
+    for title, items in groups:
+        rows = [_row_from_flag(flag, notes) for flag in items]
+        blocks.append(f"<h3>{html.escape(title)} ({len(items)})</h3>")
+        blocks.append(_table(rows))
+    if pending:
+        rows = [_row_from_line(line, flags, notes) for line in pending]
+        blocks.append(f"<h3>Could not check this ABN ({len(pending)})</h3>")
+        blocks.append(_table(rows))
+    basis_text = (
+        "Cash basis: only money received or paid in this period belongs in these totals."
+        if basis == "cash"
+        else "Accrual basis: invoices and bills for this period belong in these totals."
+    )
+    blocks.append(
+        f"<p>{html.escape(basis_text)} "
+        f"A one-eleventh difference above {money_text(rules.tolerance)} is listed above. "
+        "G1 includes GST. 1A and 1B are the GST recorded in the file. Simpler BAS lodges G1, 1A and 1B only.</p>"
+    )
+    blocks.append("<h3>Sources</h3>")
+    blocks.append(_sources())
+    inner = "".join(blocks)
+    return (
+        f'<details class="fold other">'
+        f"<summary>Other checks ({count})</summary>"
+        f'<div class="inside">{inner}</div>'
+        "</details>"
+    )
 
 
 def _since(comparison: Comparison, timezone_name: str) -> str:
     if not comparison.has_previous:
         return (
-            '<section class="panel"><p>This is the first run saved on this computer. '
-            "The next run will show what moved in the draft figures and which flags disappeared.</p></section>"
+            "<h3>Since last time</h3>"
+            "<p>This is the first run saved on this computer. "
+            "The next run will show what moved in the draft figures and which flags disappeared.</p>"
         )
+    labels = {"g1": "G1", "gst_on_sales": "1A", "gst_on_purchases": "1B", "net": "Net GST"}
     bits = []
-    labels = {
-        "g1": "G1",
-        "gst_on_sales": "1A",
-        "gst_on_purchases": "1B",
-        "net": "Net GST",
-    }
     for key, label in labels.items():
         delta = comparison.deltas.get(key)
         if delta is None or delta == 0:
@@ -342,155 +467,132 @@ def _since(comparison: Comparison, timezone_name: str) -> str:
         cleared = f"<p>Cleared since last time:</p><ul class='clean'>{items}{more}</ul>"
     new_count = len(comparison.new_flags)
     return (
-        '<section class="panel">'
+        "<h3>Since last time</h3>"
         f"<p>Compared with the run on {html.escape(format_local(comparison.previous_at, timezone_name))}.</p>"
         f"<p class='delta'>{html.escape('; '.join(bits))}.</p>"
         f"<p>{new_count} new flag{'s' if new_count != 1 else ''}. "
         f"{comparison.still_open} still open from last time. "
         f"{len(comparison.cleared_labels)} cleared.</p>"
         f"{cleared}"
-        "</section>"
     )
 
 
-def _abn_help(bills_provided: bool) -> str:
-    where = (
-        "A bills folder was included in this run."
-        if bills_provided
-        else "No bills folder was included. Say where the bills are saved, for example 'check the bills in this folder'."
-    )
-    return (
-        '<section class="panel"><p><strong>How supplier ABNs are read.</strong> '
-        "The number has to be on the bill, next to the word ABN. Text PDFs work best on this computer. "
-        "Photos, scans and HEIC files are not read here. Claude or Codex has to look at them, and that sends the picture to that AI company. "
-        "A QR code needs the app to read it, or an optional free decoder on this computer. "
-        "A number is never guessed. If you have saved a free ABR GUID, that ABN is then checked only to see "
-        "if it is active and the supplier was registered for GST. "
-        f"{html.escape(where)} "
-        'Say "set up ABN check" any time to turn the ABR part on or off.</p></section>'
-    )
+def _footer(fictional: bool) -> str:
+    parts = ["Not tax advice.", "GST part of the BAS only."]
+    if fictional:
+        parts.append("These figures are made-up example data.")
+    parts.append("Do not email this folder.")
+    return f'<footer class="end"><p>{" ".join(parts)}</p></footer>'
 
 
-def _hard_panel(lines: list[str]) -> str:
-    if not lines:
-        return '<section class="panel"><p>Nothing was marked hard on this run.</p></section>'
-    items = "".join(f"<li>{html.escape(line)}</li>" for line in lines[:12])
-    return f'<section class="panel"><ul class="clean">{items}</ul></section>'
+def _gst_claimed(transaction: Transaction | None) -> bool:
+    return transaction is not None and transaction.gst > 0
 
 
-def _abr_panel(abr: AbrOutcome) -> str:
-    notes = ""
-    if abr.notes:
-        items = "".join(
-            f"<li>{html.escape(note.supplier_abn)} ({html.escape(note.contact)}): {html.escape(note.reason)}</li>"
-            for note in abr.notes
-        )
-        notes = f"<ul class='clean'>{items}</ul>"
-    return f'<section class="panel"><p>{html.escape(abr.message)}</p>{notes}</section>'
-
-
-def _card(flag: Flag, note: Note | None) -> str:
-    transaction = flag.transaction
-    meta = _meta(transaction) if transaction else ""
-    noted = ""
-    if note:
-        noted = (
-            f'<p class="fix"><span class="chip note">{html.escape(note.status)}</span> '
-            f"{html.escape(note.text) if note.text else 'No note was saved.'}</p>"
-        )
-    return f"""
-<article class="card" id="{html.escape(flag.short_id)}">
-  <header>
-    <h3>{html.escape(flag.short_id)} · {html.escape(flag.title)}</h3>
-    <span class="chip {html.escape(flag.severity)}">{html.escape(flag.severity)}</span>
-  </header>
-  {meta}
-  <p class="why">{html.escape(flag.why)}</p>
-  <p class="fix"><strong>Suggested fix.</strong> {html.escape(flag.fix)}</p>
-  {noted}
-  <p><a href="{html.escape(flag.source_url)}">{html.escape(flag.source_title)}</a></p>
-</article>
-"""
-
-
-def _meta(transaction: Transaction) -> str:
-    abn = transaction.supplier_abn or "—"
-    reference = transaction.reference or "—"
-    return (
-        f'<p class="who">{html.escape(transaction.date.isoformat())} · {html.escape(transaction.contact)}'
-        f" · {html.escape(transaction.description)}</p>"
-        f'<p class="who quiet">{html.escape(transaction.account)} · {html.escape(transaction.tax_code_label)}'
-        f" · Ref {html.escape(reference)} · ABN {html.escape(abn)}</p>"
-        f'<p class="who"><strong>Net {money_text(transaction.net)}</strong>'
-        f" · GST {money_text(transaction.gst)} · Inclusive {money_text(transaction.inclusive)}</p>"
+def _row_from_line(
+    line: SupplierLine,
+    flags: list[Flag],
+    notes: dict[str, Note],
+    action: str | None = None,
+) -> SupplierRow:
+    flag = _match_flag(flags, line)
+    text = action or ROW_ACTION.get(line.outcome, "Check this supplier before the GST stays in 1B.")
+    return _display_row(
+        line.transaction,
+        line.on_date,
+        line.supplier,
+        None,
+        None,
+        line.abn,
+        _with_flag(text, flag, notes),
     )
 
 
-def _invoice_section(invoices: list[Flag], notes: dict[str, Note]) -> str:
-    if not invoices:
-        return ""
-    rows = []
-    for flag in invoices:
-        transaction = flag.transaction
-        if transaction is None:
+def _row_from_flag(flag: Flag, notes: dict[str, Note]) -> SupplierRow:
+    text = ROW_ACTION.get(flag.code, flag.fix)
+    abn = flag.line_abn
+    if flag.code not in MISSING_BILL_CODES and not abn and flag.transaction is not None:
+        abn = flag.transaction.supplier_abn
+    return _display_row(
+        flag.transaction,
+        flag.line_date,
+        flag.supplier_name,
+        flag.line_amount,
+        flag.line_gst,
+        abn,
+        _with_flag(text, flag, notes),
+    )
+
+
+def _display_row(
+    transaction: Transaction | None,
+    when: date | None,
+    supplier: str,
+    amount: Decimal | None,
+    gst: Decimal | None,
+    abn: str,
+    action: str,
+) -> SupplierRow:
+    if transaction is not None:
+        when = transaction.date
+        supplier = transaction.contact or supplier
+        amount = transaction.inclusive
+        gst = transaction.gst
+    return SupplierRow(
+        date=_date_text(when),
+        supplier=supplier or "—",
+        amount=_money_or_dash(amount),
+        gst=_money_or_dash(gst),
+        abn=_abn_text(abn),
+        action=action,
+    )
+
+
+def _match_flag(flags: list[Flag], line: SupplierLine) -> Flag | None:
+    code = RED_FLAG.get(line.outcome)
+    if line.outcome == "not_found":
+        code = "abn_not_found"
+    if not code:
+        return None
+    for flag in flags:
+        if flag.code != code:
             continue
-        rows.append(
-            "<tr>"
-            f"<td>{html.escape(flag.short_id)}</td>"
-            f"<td>{html.escape(transaction.date.isoformat())}</td>"
-            f"<td>{html.escape(transaction.contact)}</td>"
-            f"<td>{html.escape(transaction.description)}</td>"
-            f"<td class='num'>{money_text(transaction.inclusive)}</td>"
-            f"<td class='num'>{money_text(transaction.gst)}</td>"
-            f"<td>{html.escape(transaction.supplier_abn or '—')}</td>"
-            "</tr>"
-        )
-    table = (
-        '<div class="table-wrap"><table><thead><tr>'
-        "<th>Flag</th><th>Date</th><th>Contact</th><th>Description</th>"
-        "<th class='num'>Inclusive</th><th class='num'>GST</th><th>ABN</th>"
-        f"</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
-    )
-    sample = invoices[0]
-    return (
-        "<details>"
-        f"<summary><h2>Tax invoices to have on file ({len(invoices)})</h2></summary>"
-        '<section class="panel"><p>Each of these claims a GST credit above the tax-invoice threshold. '
-        "The check cannot see the document. Confirm it is on file before the credit stays in 1B.</p>"
-        f"<p>{html.escape(sample.why)}</p></section>"
-        f"{table}"
-        "</details>"
-    )
+        if line.transaction is not None and flag.transaction is line.transaction:
+            return flag
+        if line.file_name and flag.detail_key == line.file_name:
+            return flag
+    return None
 
 
-def _next(flags: list[Flag], notes: dict[str, Note], abr: AbrOutcome) -> str:
-    first = flags[0].short_id if flags else "F-01"
-    steps = [
-        "Work through the lines marked error. The draft totals follow the file as it is, so a fix in the books will change G1, 1A or 1B on the next run.",
-        "For the tax-invoice list, tick off the documents. If one is missing, take that GST out of 1B until it arrives.",
-        f"When a line is dealt with, say: Mark flag {first} as fixed. Note: and a short reason. Ignored lines come back next time with your note attached.",
-        "Ask a registered BAS or tax agent to confirm the figures. This report is not the lodgement.",
-    ]
-    if abr.mode == "off":
-        steps.insert(2, 'ABN check is off: say "set up ABN check" to turn it on.')
-    items = "".join(f"<li>{html.escape(step)}</li>" for step in steps)
-    return f'<section class="panel next"><ol>{items}</ol></section>'
+def _with_flag(action: str, flag: Flag | None, notes: dict[str, Note]) -> str:
+    if flag is None:
+        return action
+    prefix = f"{flag.short_id}. " if flag.short_id else ""
+    note = notes.get(flag.fingerprint) if flag.fingerprint else None
+    if note is None:
+        return f"{prefix}{action}"
+    label = "Ignored" if note.status == "ignored" else "Marked fixed"
+    extra = f" {note.text}" if note.text else ""
+    return f"{prefix}{label}.{extra} {action}".strip()
 
 
-def _method(summary: Summary, rules: Rules, basis: str) -> str:
-    basis_text = (
-        "Cash basis: this file should contain only amounts you received or paid in the period."
-        if basis == "cash"
-        else "Accrual basis: this file should contain invoices and bills for the period (and payments, where they came first)."
-    )
-    return f"""
-<section class="panel">
-  <p>{html.escape(basis_text)} The tool does not rebuild cash or accrual from a second date. It checks the dates that are in the file.</p>
-  <p>G1 is the GST-inclusive total of sales that are not BAS Excluded (taxable, GST-free and input-taxed). That matches the calculation worksheet method, which includes GST in G1. 1A is the GST recorded on taxable sales. 1B is the GST recorded on taxable purchases. Net GST is 1A minus 1B.</p>
-  <p>G10 is purchases on a capital or asset account, including a line coded GST on Capital. Everything else that is not BAS Excluded sits in G11. A capital-looking expense over {money_text(rules.capital_threshold)} is flagged, not silently moved. Simpler BAS, for GST turnover under $10 million, lodges G1, 1A and 1B only.</p>
-  <p>GST adjustments (bad debts, private use, annual apportionment) are not in this draft. {summary.left_out} line{'s were' if summary.left_out != 1 else ' was'} left out because the sale/purchase side or the tax code could not be read. Rounding tolerance for the one-eleventh check is {money_text(rules.tolerance)}.</p>
-</section>
-"""
+def _date_text(value: date | None) -> str:
+    if value is None:
+        return "—"
+    return f"{value.day} {value.strftime('%b %Y')}"
+
+
+def _money_or_dash(value: Decimal | None) -> str:
+    if value is None:
+        return "—"
+    return money_text(value)
+
+
+def _abn_text(value: str) -> str:
+    digits = "".join(character for character in (value or "") if character.isdigit())
+    if len(digits) != 11:
+        return "—"
+    return f"{digits[0:2]} {digits[2:5]} {digits[5:8]} {digits[8:11]}"
 
 
 def _sources() -> str:
@@ -502,16 +604,16 @@ def _sources() -> str:
     return f'<ul class="sources">{items}</ul>'
 
 
+
 def render_error_html(business: str, errors: list[str], theme: str = "") -> str:
     items = "".join(f"<li>{html.escape(error)}</li>" for error in errors)
     body = f"""
 <main class="wrap">
-  <p class="eyebrow"><span class="mark">GST</span> part of the BAS only</p>
-  <h1>{html.escape(business)}</h1>
-  <section class="disclaimer error"><strong>This file could not be checked.</strong>
-  <p>No BAS figures were calculated. Fix the file, or name the quarter, and run the check again.</p>
-  <ul class="clean">{items}</ul></section>
-  <p>Do not copy anything from an older report onto the BAS. This checker sends nothing. Do not zip this folder and email it.</p>
+  <header class="top"><h1>{html.escape(business)}</h1><p class="tag">Check only</p></header>
+  <section class="status bad"><h2>This file could not be checked.</h2>
+  <div class="pad"><p>No BAS figures were calculated. Fix the file, or name the quarter, and run the check again.</p>
+  <ul class="clean">{items}</ul></div></section>
+  <footer class="end"><p>Not tax advice. GST part of the BAS only. Do not email this folder.</p></footer>
 </main>
 """
     css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")

@@ -75,6 +75,11 @@ class Flag:
     detail_key: str = ""
     fingerprint: str = ""
     short_id: str = ""
+    supplier_name: str = ""
+    line_date: date | None = None
+    line_amount: Decimal | None = None
+    line_gst: Decimal | None = None
+    line_abn: str = ""
 
 
 @dataclass

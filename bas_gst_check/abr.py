@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
@@ -40,6 +40,18 @@ class AbrRecord:
 
 
 @dataclass
+class SupplierLine:
+    """One ABN read from a bill, and what the ABR said about it."""
+
+    abn: str
+    on_date: date | None
+    supplier: str
+    transaction: Transaction | None
+    file_name: str
+    outcome: str
+
+
+@dataclass
 class AbrOutcome:
     mode: str
     message: str
@@ -47,6 +59,7 @@ class AbrOutcome:
     notes: list[AbrNote]
     cache_hits: int = 0
     network_calls: int = 0
+    lines: list[SupplierLine] = field(default_factory=list)
 
 
 class AbrTransportError(Exception):
@@ -137,9 +150,16 @@ def confirm_bill_abns(
             ),
             flags=[],
             notes=[],
+            lines=_unchecked_lines(items),
         )
     if not guid:
-        return AbrOutcome(mode="off", message=abr_skipped_message(), flags=[], notes=[])
+        return AbrOutcome(
+            mode="off",
+            message=abr_skipped_message(),
+            flags=[],
+            notes=[],
+            lines=_unchecked_lines(items),
+        )
     if not items:
         return AbrOutcome(
             mode="on",
@@ -153,6 +173,7 @@ def confirm_bill_abns(
     transport = fetch or urllib_fetch
     flags: list[Flag] = []
     notes: list[AbrNote] = []
+    lines: list[SupplierLine] = []
     hits = 0
     calls = 0
     seen: dict[str, AbrRecord | None] = {}
@@ -169,28 +190,34 @@ def confirm_bill_abns(
                     seen[abn] = None
                     notes.append(AbrNote(
                         supplier_abn=abn,
-                        contact=supplier,
+                        contact=str(supplier or ""),
                         reason=f"The ABR lookup {exc.reason}. No conclusion was drawn for this bill.",
                     ))
-                    continue
-                if record.auth_rejected:
-                    return AbrOutcome(
-                        mode="rejected",
-                        message=(
-                            "The ABR did not accept the GUID, so these bill ABNs were not confirmed. "
-                            "The GUID was not written into this report."
-                        ),
-                        flags=[],
-                        notes=[],
-                        cache_hits=hits,
-                        network_calls=calls,
-                    )
-                cache[abn] = record
-                seen[abn] = record
-                _write_cache(cache_path, cache)
+                else:
+                    if record.auth_rejected:
+                        return AbrOutcome(
+                            mode="rejected",
+                            message=(
+                                "The ABR did not accept the GUID, so these bill ABNs were not confirmed. "
+                                "The GUID was not written into this report."
+                            ),
+                            flags=[],
+                            notes=[],
+                            cache_hits=hits,
+                            network_calls=calls,
+                            lines=_unchecked_lines(items),
+                        )
+                    cache[abn] = record
+                    seen[abn] = record
+                    _write_cache(cache_path, cache)
         record = seen.get(abn)
+        attached = transaction if isinstance(transaction, Transaction) else None
+        when = on_date if isinstance(on_date, date) else None
         if record is None:
+            lines.append(SupplierLine(abn, when, str(supplier or ""), attached, str(file_name or ""), "could_not_check"))
             continue
+        outcome = registration_outcome(record, when or date.today())
+        lines.append(SupplierLine(abn, when, str(supplier or ""), attached, str(file_name or ""), outcome))
         flags.extend(_flags_for_known(abn, on_date, supplier, transaction, file_name, record, rules))
     cached = f"{hits} answered from the saved cache on this computer" if hits else "nothing came from the local cache"
     called = "called the ABR" if calls else "did not need a new call"
@@ -205,6 +232,7 @@ def confirm_bill_abns(
         notes=notes,
         cache_hits=hits,
         network_calls=calls,
+        lines=lines,
     )
 
 
@@ -344,6 +372,33 @@ def parse_abr_body(abn: str, body: str) -> AbrRecord:
         entity_name=entity,
         message=message,
     )
+
+
+def registration_outcome(record: AbrRecord, when: date) -> str:
+    """Active and GST-registered, or why that claim should not stay in 1B."""
+    if not record.found:
+        return "not_found"
+    if record.status == "cancelled" and (record.status_from is None or record.status_from <= when):
+        return "cancelled"
+    if record.gst_from is None or record.gst_from > when:
+        return "not_registered"
+    return "gst_registered"
+
+
+def _unchecked_lines(items: list[tuple[str, object, str, object, str]]) -> list[SupplierLine]:
+    lines: list[SupplierLine] = []
+    for abn, on_date, supplier, transaction, file_name in items:
+        attached = transaction if isinstance(transaction, Transaction) else None
+        when = on_date if isinstance(on_date, date) else None
+        lines.append(SupplierLine(
+            abn=str(abn),
+            on_date=when,
+            supplier=str(supplier or (attached.contact if attached else "")),
+            transaction=attached,
+            file_name=str(file_name or ""),
+            outcome="unchecked",
+        ))
+    return lines
 
 
 def _flags_for_known(

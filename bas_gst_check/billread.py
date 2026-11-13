@@ -117,7 +117,7 @@ def _decide(
 ) -> None:
     if reading.unreadable:
         _warn(
-            flags, hard, reading, "bill_unreadable", "This bill could not be read",
+            flags, hard, reading, transactions, "bill_unreadable", "This bill could not be read",
             reading.unreadable_reason + _hint_note(reading, hints),
             "Ask Claude or Codex to read this file, or send a text PDF. No ABN was guessed.",
         )
@@ -125,7 +125,7 @@ def _decide(
     if len(reading.valid_abns) > 1:
         shown = ", ".join(_grouped(number) for number in reading.valid_abns)
         _warn(
-            flags, hard, reading, "bill_several_abns", "This bill shows more than one ABN",
+            flags, hard, reading, transactions, "bill_several_abns", "This bill shows more than one ABN",
             f"The bill shows more than one valid ABN ({shown}). None of them was used.",
             "Check which number is the supplier's ABN and say which one to confirm. Do not claim GST from a number you have not chosen.",
         )
@@ -133,7 +133,7 @@ def _decide(
     if reading.invalid_abns and not reading.valid_abns:
         shown = ", ".join(_grouped(number) for number in reading.invalid_abns)
         _warn(
-            flags, hard, reading, "bill_bad_checksum", "The ABN on this bill fails the checksum",
+            flags, hard, reading, transactions, "bill_bad_checksum", "The ABN on this bill fails the checksum",
             f"The bill labels {shown} as an ABN, but it fails the official ABN checksum, so it cannot be a real ABN. It was not used.",
             "Read the digits again from the bill. If they still fail the checksum, ask the supplier for the ABN on their tax invoice.",
         )
@@ -143,14 +143,14 @@ def _decide(
         if remembered and abn_is_valid(remembered):
             reading.used_confirmed = True
             _warn(
-                flags, hard, reading, "bill_no_abn", "No ABN was printed on this bill",
+                flags, hard, reading, transactions, "bill_no_abn", "No ABN was printed on this bill",
                 "No ABN was printed on this bill. The ABR check, if it is on, will use only the ABN you confirmed earlier for this supplier. That is a memory, not a number read from this page.",
                 "If the bill should show an ABN, ask for a clearer copy. Otherwise leave the confirmed ABN as it is.",
             )
             _queue(reading, remembered, transactions, flags, hard, to_confirm)
             return
         _warn(
-            flags, hard, reading, "bill_no_abn", "No ABN was found on this bill",
+            flags, hard, reading, transactions, "bill_no_abn", "No ABN was found on this bill",
             "No ABN label with 11 digits was on this bill. No number was guessed." + _hint_note(reading, hints),
             "Look at the bill again, or tell me the ABN if you can see it and I will save it only after the checksum passes.",
         )
@@ -169,7 +169,7 @@ def _queue(
     matches = _match(reading, transactions)
     if not matches:
         _warn(
-            flags, hard, reading, "bill_unmatched", "This bill did not match a transaction",
+            flags, hard, reading, transactions, "bill_unmatched", "This bill did not match a transaction",
             f"The ABN {_grouped(abn)} was read from the bill, but no purchase matched the supplier, date and amount. It was not attached to a line.",
             "Check the supplier name, the invoice date and the total against the export. If the purchase is missing, it is not in this BAS file.",
         )
@@ -202,11 +202,19 @@ def _warn(
     flags: list[Flag],
     hard: list[HardNote],
     reading: BillReading,
+    transactions: list[Transaction],
     code: str,
     title: str,
     why: str,
     fix: str,
 ) -> None:
+    matches = _match(reading, transactions)
+    attached = matches[0] if len(matches) == 1 else None
+    labelled = ""
+    if len(reading.valid_abns) == 1:
+        labelled = reading.valid_abns[0]
+    elif len(reading.invalid_abns) == 1:
+        labelled = reading.invalid_abns[0]
     flags.append(Flag(
         code=code,
         title=title,
@@ -215,7 +223,13 @@ def _warn(
         fix=fix,
         source_url=GST_CREDIT,
         source_title=SOURCE_TITLES[GST_CREDIT],
+        transaction=attached,
         detail_key=reading.file_name,
+        supplier_name=reading.supplier,
+        line_date=reading.bill_date,
+        line_amount=reading.total if reading.total is not None else (attached.inclusive if attached else None),
+        line_gst=attached.gst if attached else None,
+        line_abn=labelled,
     ))
     hard.append(HardNote(
         supplier=reading.supplier or "(supplier not named)",
