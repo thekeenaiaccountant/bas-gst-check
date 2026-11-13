@@ -258,3 +258,79 @@ footer.end {
   .stamp { transform: none; }
   .card, .figure, .disclaimer, .panel { break-inside: avoid; }
 }
+
+/* Pooja K preset. White page, navy text, pink only as a small accent. */
+body.pooja {
+  background: #FFFFFF;
+  color: #021A54;
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-weight: 450;
+}
+body.pooja h1,
+body.pooja h2,
+body.pooja h3,
+body.pooja .disclaimer strong,
+body.pooja .card h3 {
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-weight: 800;
+  color: #021A54;
+}
+body.pooja h1 { font-weight: 850; letter-spacing: -0.04em; }
+body.pooja .banner { height: 3px; background: #FF85BB; }
+body.pooja .mark { color: #D6337A; }
+body.pooja a { color: #021A54; }
+body.pooja .stamp {
+  border: 2px solid #021A54;
+  color: #021A54;
+  background: #FFFFFF;
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-weight: 800;
+  position: relative;
+}
+body.pooja .stamp::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #FF85BB;
+  position: absolute;
+  top: 0.55rem;
+}
+body.pooja .disclaimer {
+  background: #FFFFFF;
+  border: 1px solid #E2E6EE;
+  border-left: 3px solid #021A54;
+}
+body.pooja .disclaimer.warn {
+  background: #FFF0D6;
+  border-color: #FFF0D6;
+  color: #9A5B00;
+}
+body.pooja .disclaimer.error {
+  background: #FDECEC;
+  border-color: #FDECEC;
+  color: #9B1C1C;
+}
+body.pooja .chip.error {
+  background: #FDECEC;
+  color: #9B1C1C;
+  border-color: transparent;
+}
+body.pooja .chip.review {
+  background: #FFF0D6;
+  color: #9A5B00;
+  border-color: transparent;
+}
+body.pooja .chip.note {
+  background: #FFFFFF;
+  color: #021A54;
+  border-color: #E2E6EE;
+}
+body.pooja .figure.payable strong,
+body.pooja .figure.refundable strong { color: #021A54; }
+body.pooja .figure.refundable em { color: #0E7A43; }
+body.pooja code,
+body.pooja .prompt {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-weight: 400;
+}

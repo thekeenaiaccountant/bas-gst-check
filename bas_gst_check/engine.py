@@ -80,7 +80,7 @@ def execute(
     state = state_dir or Path(".local")
     business = active_settings.business_name or loaded.business_name or "This business"
     if loaded.errors:
-        html_path = _write_failure(output, business, loaded.errors)
+        html_path = _write_failure(output, business, loaded.errors, "pooja" if active_settings.brand == "preset" else "")
         return RunResult(html_path, None, loaded.errors, None, [], "off")
 
     period, warning = _resolve_period(loaded, active_settings, period_start, period_end)
@@ -89,7 +89,7 @@ def execute(
             "Which quarter is this file? For example, 1 July 2026 to 30 September 2026. "
             "The figures are not calculated until you name the period. Nothing was guessed from the dates in the file."
         ]
-        html_path = _write_failure(output, business, missing)
+        html_path = _write_failure(output, business, missing, "pooja" if active_settings.brand == "preset" else "")
         return RunResult(html_path, None, missing, None, [], "off")
     warning = " ".join(part for part in (warning, _length_warning(period, active_settings.bas_period)) if part)
     basis = _basis(active_settings, loaded)
@@ -145,6 +145,7 @@ def execute(
         period_warning=warning,
         hard_lines=hard_lines,
         bills_provided=bill_folder is not None,
+        theme="pooja" if active_settings.brand == "preset" else "",
     )
     output.mkdir(parents=True, exist_ok=True)
     html_path = output / "bas-gst-check.html"
@@ -194,10 +195,10 @@ def _resolve_period(
     return None, ""
 
 
-def _write_failure(output: Path, business: str, errors: list[str]) -> Path:
+def _write_failure(output: Path, business: str, errors: list[str], theme: str = "") -> Path:
     output.mkdir(parents=True, exist_ok=True)
     html_path = output / "bas-gst-check.html"
-    html_path.write_text(render_error_html(business or "This business", errors), encoding="utf-8")
+    html_path.write_text(render_error_html(business or "This business", errors, theme), encoding="utf-8")
     return html_path
 
 

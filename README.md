@@ -4,11 +4,11 @@ Open this folder in Claude Code or Codex (File, Open Folder, then this folder). 
 
 Check a quarter of GST figures before the BAS is lodged, and see the likely mistakes. This is the GST part of the BAS only.
 
-![Draft BAS report for the fictional example, using the navy and pink preset](docs/screenshot.png)
+![Draft BAS report for the fictional example, using the Pooja K preset](docs/screenshot.png)
 
 ![A short scroll through the same report](docs/walkthrough.gif)
 
-The picture uses the navy and pink preset. Until you choose a brand, the report uses the paper-and-ink default. **Every name, amount and ABN in the example is made up.** Fennel Street Workshop is not a real business.
+The picture uses the Pooja K preset: a white page, navy text, and a little pink. Until you choose a brand, the report uses the paper-and-ink default. **Every name, amount and ABN in the example is made up.** Fennel Street Workshop is not a real business.
 
 This copy is private for now. Do not publish the repository. The licence, when you do share it, is MIT.
 
@@ -22,7 +22,7 @@ Type:
 Set up BAS GST check
 ```
 
-It asks one question at a time: the business name, quarterly or monthly, cash or accrual, branding (the navy `#021A54` and pink `#FF85BB` preset, your own colours and logo, or skip), whether to use the example or your own export, and whether you have an ABR GUID. You can skip the GUID.
+It asks one question at a time: the business name, quarterly or monthly, cash or accrual, branding is asked after the first report (the Pooja K preset, your own colours and logo, or skip), whether to use the example or your own export, and whether you have an ABR GUID. You can skip the GUID.
 
 Then type:
 

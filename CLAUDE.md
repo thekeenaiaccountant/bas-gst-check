@@ -20,7 +20,7 @@ Write the answers only into `my-settings.toml` (copy the shape from `my-settings
 
 - Quarterly or monthly goes in `bas_period` as `quarterly` or `monthly`.
 - Cash or accrual goes in `gst_basis` as `cash` or `accrual`.
-- Leave branding as `skip` on the first run. After the first report is open, ask whether they want the navy (`#021A54`) and pink (`#FF85BB`) preset, their own colours and an optional logo, or to keep the plain look. Preset is `brand = "preset"`. Their own colours are `brand = "custom"` with hex codes under `[brand_colours]`. A logo is copied into `my-brand/`.
+- Leave branding as `skip` on the first run. After the first report is open, ask whether they want the Pooja K preset (white page, navy text, a little pink), their own colours and an optional logo, or to keep the plain look. Preset is `brand = "preset"`. Their own colours are `brand = "custom"` with hex codes under `[brand_colours]`. A logo is copied into `my-brand/`.
 - Example data: leave `data_file` blank.
 - Their own export: put the path in `data_file`. If the file does not name the quarter, ask for the start and end dates and set `period_start` and `period_end`.
 - If they skip the GUID, leave `abr_guid` empty. The report will say: ABN check is off: say "set up ABN check" to turn it on.

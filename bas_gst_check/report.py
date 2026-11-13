@@ -30,10 +30,15 @@ PRESET = {
     "--ink": "#021A54",
     "--primary": "#021A54",
     "--accent": "#FF85BB",
-    "--paper": "#F4F0F6",
+    "--paper": "#FFFFFF",
     "--card": "#FFFFFF",
-    "--line": "#E3D9EA",
-    "--bad": "#9D174D",
+    "--line": "#E2E6EE",
+    "--muted": "#5B6B8F",
+    "--good": "#0E7A43",
+    "--warn": "#9A5B00",
+    "--bad": "#9B1C1C",
+    "--serif": "Inter, \"Segoe UI\", sans-serif",
+    "--sans": "Inter, \"Segoe UI\", sans-serif",
 }
 
 
@@ -55,6 +60,7 @@ def render_html(
     period_warning: str,
     hard_lines: list[str] | None = None,
     bills_provided: bool = False,
+    theme: str = "",
 ) -> str:
     css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")
     if brand_overrides:
@@ -85,7 +91,12 @@ def render_html(
         template_path = PACKAGE_TEMPLATES / "report.html.tpl"
     template = Template(template_path.read_text(encoding="utf-8"))
     title = f"BAS GST check — {business}"
-    return template.substitute(title=html.escape(title), css=css, body=body)
+    return template.substitute(
+        title=html.escape(title),
+        css=css,
+        body=body,
+        body_class="pooja" if theme == "pooja" else "",
+    )
 
 
 def write_csv(path: Path, flags: list[Flag], notes: dict[str, Note]) -> None:
@@ -171,7 +182,7 @@ def _body(
         parts.append(f'<p class="example-banner">{html.escape(period_warning)}</p>')
     if summary.left_out:
         parts.append(
-            '<section class="disclaimer"><strong>These draft figures are incomplete.</strong> '
+            '<section class="disclaimer warn"><strong>These draft figures are incomplete.</strong> '
             f"<p>{summary.left_out} line{'s were' if summary.left_out != 1 else ' was'} left out because the tax code "
             "or the sale/purchase side was not recognised. This is not a nil BAS. "
             "Do not lodge these numbers until those lines are coded.</p></section>"
@@ -247,7 +258,7 @@ def _header(business: str, period: Period, basis: str, bas_period: str, logo_htm
 <header class="top">
   <div>
     {logo_html}
-    <p class="eyebrow">GST part of the BAS only</p>
+    <p class="eyebrow"><span class="mark">GST</span> part of the BAS only</p>
     <h1>{html.escape(business)}</h1>
     <p class="lede">{html.escape(period_label(period.start, period.end))} · {rhythm} · {basis_label} · Prepared on this computer</p>
   </div>
@@ -487,13 +498,13 @@ def _sources() -> str:
     return f'<ul class="sources">{items}</ul>'
 
 
-def render_error_html(business: str, errors: list[str]) -> str:
+def render_error_html(business: str, errors: list[str], theme: str = "") -> str:
     items = "".join(f"<li>{html.escape(error)}</li>" for error in errors)
     body = f"""
 <main class="wrap">
-  <p class="eyebrow">GST part of the BAS only</p>
+  <p class="eyebrow"><span class="mark">GST</span> part of the BAS only</p>
   <h1>{html.escape(business)}</h1>
-  <section class="disclaimer"><strong>This file could not be checked.</strong>
+  <section class="disclaimer error"><strong>This file could not be checked.</strong>
   <p>No BAS figures were calculated. Fix the file, or name the quarter, and run the check again.</p>
   <ul class="clean">{items}</ul></section>
   <p>Do not copy anything from an older report onto the BAS. This checker sends nothing. Do not zip this folder and email it.</p>
@@ -501,7 +512,12 @@ def render_error_html(business: str, errors: list[str]) -> str:
 """
     css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")
     template = Template((PACKAGE_TEMPLATES / "report.html.tpl").read_text(encoding="utf-8"))
-    return template.substitute(title=html.escape(f"Could not check — {business}"), css=css, body=body)
+    return template.substitute(
+        title=html.escape(f"Could not check — {business}"),
+        css=css,
+        body=body,
+        body_class="pooja" if theme == "pooja" else "",
+    )
 
 
 def _pretty_stamp(value: str) -> str:

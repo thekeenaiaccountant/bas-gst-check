@@ -8,7 +8,7 @@
 $css
 </style>
 </head>
-<body>
+<body class="$body_class">
 <div class="banner"></div>
 $body
 </body>
