@@ -1,0 +1,230 @@
+{
+  "business_name": "Fennel Street Workshop",
+  "period_start": "2026-04-01",
+  "period_end": "2026-06-30",
+  "gst_basis": "accrual",
+  "fictional": true,
+  "note": "Made-up previous quarter for the example. Not a real business.",
+  "transactions": [
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Sable Commercial",
+      "description": "Previous quarter total",
+      "account": "Rent",
+      "net_amount": "7660.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-101"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Kindling Software",
+      "description": "Previous quarter total",
+      "account": "Software",
+      "net_amount": "354.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-102"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Southbend Power",
+      "description": "Previous quarter total",
+      "account": "Electricity",
+      "net_amount": "649.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-103"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Copperline Telecom",
+      "description": "Previous quarter total",
+      "account": "Telephone",
+      "net_amount": "264.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-104"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Nettle Insurance",
+      "description": "Previous quarter total",
+      "account": "Insurance",
+      "net_amount": "653.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-105"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Bramble Fuel",
+      "description": "Previous quarter total",
+      "account": "Motor vehicle expenses",
+      "net_amount": "199.10",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-106"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Fathom Accounting",
+      "description": "Previous quarter total",
+      "account": "Accounting fees",
+      "net_amount": "1155.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-107"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Cinder Repairs",
+      "description": "Previous quarter total",
+      "account": "Repairs",
+      "net_amount": "1031.50",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-108"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Loom Advertising",
+      "description": "Previous quarter total",
+      "account": "Advertising",
+      "net_amount": "200.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-109"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Parcel Counter",
+      "description": "Previous quarter total",
+      "account": "Courier",
+      "net_amount": "327.80",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-110"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Lumen Stationery",
+      "description": "Previous quarter total",
+      "account": "Office expenses",
+      "net_amount": "936.10",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-111"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Harrow Equipment",
+      "description": "Previous quarter total",
+      "account": "Computer equipment",
+      "net_amount": "1980.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-112"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Riverbend Bank",
+      "description": "Previous quarter total",
+      "account": "Bank fees",
+      "net_amount": "39.20",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-113"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Staff Wages",
+      "description": "Previous quarter total",
+      "account": "Wages",
+      "net_amount": "20080.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-114"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Staff Super",
+      "description": "Previous quarter total",
+      "account": "Superannuation",
+      "net_amount": "1132.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-115"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Companies Register",
+      "description": "Previous quarter total",
+      "account": "Filing fees",
+      "net_amount": "629.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-116"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Creek Road Grocer",
+      "description": "Previous quarter total",
+      "account": "Staff amenities",
+      "net_amount": "58.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-117"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Harrow Equipment",
+      "description": "Previous quarter total",
+      "account": "General expenses",
+      "net_amount": "2090.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-118"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Riverbend Bank",
+      "description": "Previous quarter total",
+      "account": "Staff amenities",
+      "net_amount": "17.49",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-119"
+    },
+    {
+      "date": "2026-05-15",
+      "type": "purchase",
+      "contact": "Parcel Counter",
+      "description": "Previous quarter total",
+      "account": "Office expenses",
+      "net_amount": "40.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "PRIOR-120"
+    }
+  ]
+}

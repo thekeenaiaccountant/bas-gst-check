@@ -12,7 +12,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
 endobj
 5 0 obj
-<< /Length 226 >>
+<< /Length 245 >>
 stream
 BT
 /F1 11 Tf
@@ -28,6 +28,8 @@ T*
 T*
 (Total: 154.00) Tj
 T*
+(GST: 14.00) Tj
+T*
 (ABN: 99 000 000 032) Tj
 ET
 endstream
@@ -42,5 +44,5 @@ xref
 0000000311 00000 n 
 trailer << /Size 6 /Root 1 0 R >>
 startxref
-588
+607
 %%EOF

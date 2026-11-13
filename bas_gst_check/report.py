@@ -65,6 +65,7 @@ def render_html(
     bills_provided: bool = False,
     theme: str = "",
     timezone_name: str = "Australia/Sydney",
+    explanation: str = "",
 ) -> str:
     css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")
     if brand_overrides:
@@ -90,6 +91,7 @@ def render_html(
         hard_lines=hard_lines or [],
         bills_provided=bills_provided,
         timezone_name=timezone_name,
+        explanation=explanation,
     )
     template_path = Path.cwd() / "my-templates" / "report.html.tpl"
     if not template_path.is_file():
@@ -170,6 +172,7 @@ MISSING_BILL_CODES = frozenset({
     "bill_bad_checksum",
     "bill_several_abns",
 })
+BILL_COMPARE_CODES = ("gst_on_bill", "gst_without_bill", "bill_unmatched")
 RED_FLAG = {"cancelled": "abn_cancelled", "not_registered": "abn_not_gst_registered"}
 ROW_ACTION = {
     "cancelled": "Take the GST out of 1B. The ABR shows this ABN as cancelled.",
@@ -244,6 +247,7 @@ def other_flags(flags: list[Flag], abr: AbrOutcome) -> list[Flag]:
             if line.outcome in RED_FLAG and _gst_claimed(line.transaction) and line.transaction is not None:
                 shown_red.add(id(line.transaction))
     hidden = set(MISSING_BILL_CODES)
+    hidden.update(BILL_COMPARE_CODES)
     hidden.add("abn_not_found")
     kept: list[Flag] = []
     for flag in flags:
@@ -278,6 +282,7 @@ def _body(
     hard_lines: list[str],
     bills_provided: bool,
     timezone_name: str,
+    explanation: str,
 ) -> str:
     problem, missing, registered, checked = supplier_sections(flags, abr, notes)
     parts = [
@@ -285,6 +290,8 @@ def _body(
         _header(business, period, basis, bas_period, logo_html),
         _figures(summary),
     ]
+    if explanation:
+        parts.append(f'<p class="explain">{html.escape(explanation)}</p>')
     if period_warning:
         parts.append(f'<p class="quiet">{html.escape(period_warning)}</p>')
     if summary.left_out:
@@ -301,6 +308,7 @@ def _body(
     parts.append(_status("bad", "problem", problem, checked))
     parts.append(_status("warn", "missing", missing, checked))
     parts.append(_fold("good", "registered", registered, checked, _table(registered)))
+    parts.append(_bills_section(flags, notes, bills_provided))
     parts.append(_other(flags, notes, comparison, abr, rules, basis, hard_lines, bills_provided, timezone_name))
     parts.append(_footer(fictional))
     parts.append("</main>")
@@ -380,6 +388,27 @@ def _table(rows: list[SupplierRow]) -> str:
         "<th>Date</th><th>Supplier</th><th class='num'>Amount</th>"
         "<th class='num'>GST in the file</th><th>ABN</th><th>What to do</th>"
         f"</tr></thead><tbody>{body}</tbody></table></div>"
+    )
+
+
+def _bills_section(flags: list[Flag], notes: dict[str, Note], bills_provided: bool) -> str:
+    rows = [
+        _row_from_flag(flag, notes)
+        for flag in flags
+        if flag.code in BILL_COMPARE_CODES
+    ]
+    count = len(rows)
+    if not bills_provided:
+        inner = '<p class="empty">No bills folder was included, so bills were not compared with the file.</p>'
+    elif not rows:
+        inner = '<p class="empty">Every bill matched a line, and the GST on the bill matched the file.</p>'
+    else:
+        inner = _table(rows)
+    return (
+        '<section class="status plain">'
+        f"<h2>Bills vs Xero ({count})</h2>"
+        f"{inner}"
+        "</section>"
     )
 
 

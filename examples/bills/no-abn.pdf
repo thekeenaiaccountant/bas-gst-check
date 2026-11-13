@@ -12,7 +12,7 @@ endobj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
 endobj
 5 0 obj
-<< /Length 196 >>
+<< /Length 215 >>
 stream
 BT
 /F1 11 Tf
@@ -27,6 +27,8 @@ T*
 (Description: Door repair) Tj
 T*
 (Total: 302.50) Tj
+T*
+(GST: 27.50) Tj
 ET
 endstream
 endobj
@@ -40,5 +42,5 @@ xref
 0000000311 00000 n 
 trailer << /Size 6 /Root 1 0 R >>
 startxref
-558
+577
 %%EOF

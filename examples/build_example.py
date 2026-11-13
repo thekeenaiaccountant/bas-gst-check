@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import json
 import sys
+from collections import defaultdict
 from decimal import Decimal
 from pathlib import Path
 
@@ -62,6 +63,7 @@ def main() -> None:
     json_path = ROOT / "examples" / "fennel-street-workshop.json"
     csv_path = ROOT / "examples" / "fennel-street-workshop.csv"
     json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    _write_previous(rows)
     with csv_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
             handle,
@@ -194,10 +196,54 @@ def _rows() -> list[dict[str, str]]:
         add("2026-07-27", buy, EQUIPMENT, "Drawing table", "General expenses", "300", gst_out, abn=CANCELLED),
         add("2026-08-06", buy, SOFTWARE, "Plugin licence", "Software", "150", gst_out, abn=NOT_GST),
         add("2026-08-17", buy, "Bluegum Hosting", "Site hosting", "Software", "140", gst_out, abn=NOT_FOUND),
+        add("2026-07-17", buy, INSURER, "Insurance premium", "Insurance", "180", free),
+        add("2026-08-03", buy, REGISTER, "Stamp duty on the lease", "Filing fees", "90", gst_out),
+        add("2026-08-19", buy, BANK, "Netflix subscription", "Staff amenities", "15.90", gst_out),
+        add("2026-09-05", buy, COURIER, "Pouch restock", "Office expenses", "40", free),
     ]
     twin = next(row for row in rows if row["date"] == "2026-07-11" and row["description"] == "Copy paper")
     rows.append(dict(twin))
     return rows
+
+
+def _write_previous(rows: list[dict[str, str]]) -> None:
+    """A made-up earlier quarter so new suppliers and a spend jump can be seen."""
+    totals: dict[tuple[str, str], Decimal] = defaultdict(lambda: Decimal("0"))
+    for row in rows:
+        if row["type"] != "purchase":
+            continue
+        totals[(row["contact"], row["account"])] += Decimal(row["net_amount"]) + Decimal(row["gst_amount"])
+    transactions = []
+    number = 100
+    for (contact, account), amount in totals.items():
+        if contact == "Bluegum Hosting":
+            continue
+        if contact == "Loom Advertising":
+            amount = Decimal("200.00")
+        number += 1
+        transactions.append({
+            "date": "2026-05-15",
+            "type": "purchase",
+            "contact": contact,
+            "description": "Previous quarter total",
+            "account": account,
+            "net_amount": f"{amount:.2f}",
+            "gst_amount": "0.00",
+            "tax_code": "GST Free",
+            "reference": f"PRIOR-{number}",
+        })
+    payload = {
+        "business_name": "Fennel Street Workshop",
+        "period_start": "2026-04-01",
+        "period_end": "2026-06-30",
+        "gst_basis": "accrual",
+        "fictional": True,
+        "note": "Made-up previous quarter for the example. Not a real business.",
+        "transactions": transactions,
+    }
+    path = ROOT / "examples" / "fennel-street-previous.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote {len(transactions)} previous-quarter rows to {path.name}")
 
 
 if __name__ == "__main__":

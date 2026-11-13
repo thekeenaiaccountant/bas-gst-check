@@ -27,6 +27,12 @@ EXPECTED = {
     "bill_bad_checksum",
     "bill_several_abns",
     "bill_unmatched",
+    "gst_on_bill",
+    "gst_without_bill",
+    "suggested_code",
+    "personal_spend",
+    "supplier_new",
+    "supplier_jump",
     "abn_not_found",
     "abn_cancelled",
     "abn_not_gst_registered",
@@ -92,6 +98,10 @@ def test_example_is_fiction_and_covers_every_check(tmp_path: Path):
     assert _section_count(html, "Not registered for GST, but GST was claimed") >= 1
     assert _section_count(html, "ABN not found") >= 1
     assert _section_count(html, "ABN found and GST registered") >= 1
+    assert _section_count(html, "Bills vs Xero") >= 1
+    assert "Suggestion, check it" in html
+    assert "May be personal, check" in html
+    assert "Draft net GST is" in html
     assert '<details class="fold good">' in html
     assert '<details class="fold other">' in html
     assert 'class="stamp"' not in html

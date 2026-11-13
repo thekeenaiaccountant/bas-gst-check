@@ -834,6 +834,50 @@
       "supplier_abn": "44444444444"
     },
     {
+      "date": "2026-07-17",
+      "type": "purchase",
+      "contact": "Nettle Insurance",
+      "description": "Insurance premium",
+      "account": "Insurance",
+      "net_amount": "180.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "INV-2473"
+    },
+    {
+      "date": "2026-08-03",
+      "type": "purchase",
+      "contact": "Companies Register",
+      "description": "Stamp duty on the lease",
+      "account": "Filing fees",
+      "net_amount": "90.00",
+      "gst_amount": "9.00",
+      "tax_code": "GST on Expenses",
+      "reference": "INV-2474"
+    },
+    {
+      "date": "2026-08-19",
+      "type": "purchase",
+      "contact": "Riverbend Bank",
+      "description": "Netflix subscription",
+      "account": "Staff amenities",
+      "net_amount": "15.90",
+      "gst_amount": "1.59",
+      "tax_code": "GST on Expenses",
+      "reference": "INV-2475"
+    },
+    {
+      "date": "2026-09-05",
+      "type": "purchase",
+      "contact": "Parcel Counter",
+      "description": "Pouch restock",
+      "account": "Office expenses",
+      "net_amount": "40.00",
+      "gst_amount": "0.00",
+      "tax_code": "GST Free",
+      "reference": "INV-2476"
+    },
+    {
       "date": "2026-07-11",
       "type": "purchase",
       "contact": "Lumen Stationery",

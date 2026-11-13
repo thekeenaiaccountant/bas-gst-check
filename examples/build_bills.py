@@ -6,8 +6,10 @@ real businesses.
 
 from __future__ import annotations
 
+import json
 import struct
 import zlib
+from decimal import Decimal
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / "bills"
@@ -26,6 +28,7 @@ def main() -> None:
         "Invoice date: 2026-07-01",
         "Description: Studio rent",
         "Total: 2420.00",
+        "GST: 220.00",
         f"ABN: {_spaced(sable)}",
     ])
     _pdf(ROOT / "bluegum-hosting.pdf", [
@@ -34,6 +37,7 @@ def main() -> None:
         "Invoice date: 2026-08-17",
         "Description: Site hosting",
         "Total: 154.00",
+        "GST: 14.00",
         f"ABN: {_spaced(bluegum)}",
     ])
     _pdf(ROOT / "kindling-plugin.pdf", [
@@ -42,6 +46,7 @@ def main() -> None:
         "Invoice date: 2026-08-06",
         "Description: Plugin licence",
         "Total: 165.00",
+        "GST: 20.00",
         f"ABN: {_spaced(kindling)}",
     ])
     _pdf(ROOT / "nobody-trading.pdf", [
@@ -50,6 +55,7 @@ def main() -> None:
         "Invoice date: 2026-07-20",
         "Description: Oddment",
         "Total: 999.00",
+        "GST: 90.82",
         f"ABN: {_spaced(nobody)}",
     ])
     _pdf(ROOT / "two-abns.pdf", [
@@ -58,6 +64,7 @@ def main() -> None:
         "Invoice date: 2026-07-20",
         "Description: Poster boost",
         "Total: 396.00",
+        "GST: 36.00",
         f"ABN: {_spaced(sable)}",
         f"ABN: {_spaced(bluegum)}",
     ])
@@ -67,6 +74,7 @@ def main() -> None:
         "Invoice date: 2026-07-15",
         "Description: Door repair",
         "Total: 302.50",
+        "GST: 27.50",
     ])
     _pdf(ROOT / "bad-checksum.pdf", [
         "MADE UP EXAMPLE BILL. Not a real business.",
@@ -74,10 +82,46 @@ def main() -> None:
         "Invoice date: 2026-08-16",
         "Description: Plain milk and bread",
         "Total: 22.00",
+        "GST: 2.00",
         "ABN: 12 345 678 901",
     ])
     _png(ROOT / "photo-of-bill.png")
+    _auto_bills(sable)
     print(f"Wrote made-up bills in {ROOT}")
+
+
+def _auto_bills(registered: str) -> None:
+    """A bill for each GST purchase that does not already have a hand-written file."""
+    payload = json.loads((ROOT.parent / "fennel-street-workshop.json").read_text(encoding="utf-8"))
+    skip = {
+        ("2026-07-01", "Sable Commercial", "Studio rent"),
+        ("2026-08-17", "Bluegum Hosting", "Site hosting"),
+        ("2026-08-06", "Kindling Software", "Plugin licence"),
+        ("2026-07-20", "Loom Advertising", "Poster boost"),
+        ("2026-07-15", "Cinder Repairs", "Door repair"),
+        ("2026-08-16", "Creek Road Grocer", "Plain milk and bread"),
+        ("2026-09-12", "Parcel Counter", "Large crate delivery"),
+    }
+    seen: set[tuple[str, str, str]] = set()
+    index = 0
+    for row in payload["transactions"]:
+        if row.get("type") != "purchase" or Decimal(row["gst_amount"]) <= 0:
+            continue
+        key = (row["date"], row["contact"], row["description"])
+        if key in skip or key in seen:
+            continue
+        seen.add(key)
+        index += 1
+        total = Decimal(row["net_amount"]) + Decimal(row["gst_amount"])
+        _pdf(ROOT / f"auto-{index:02d}.pdf", [
+            "MADE UP EXAMPLE BILL. Not a real business.",
+            f"From: {row['contact']}",
+            f"Invoice date: {row['date']}",
+            f"Description: {row['description']}",
+            f"Total: {total:.2f}",
+            f"GST: {Decimal(row['gst_amount']):.2f}",
+            f"ABN: {_spaced(registered)}",
+        ])
 
 
 def _spaced(number: str) -> str:

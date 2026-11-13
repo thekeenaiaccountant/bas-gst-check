@@ -12,6 +12,7 @@ from pathlib import Path
 from bas_gst_check.abn import abn_is_valid, digits_only
 from bas_gst_check.models import Flag, Transaction
 from bas_gst_check.money import parse_money
+from bas_gst_check.rules import Rules, load_rules
 from bas_gst_check.sources import GST_CREDIT, SOURCE_TITLES
 
 LABELLED_ABN = re.compile(
@@ -20,6 +21,7 @@ LABELLED_ABN = re.compile(
 FROM_LINE = re.compile(r"(?im)^(?:from|supplier|biller)\s*:\s*(.+)$")
 DATE_LINE = re.compile(r"(?im)^(?:invoice date|date)\s*:\s*(\d{4}-\d{2}-\d{2})")
 TOTAL_LINE = re.compile(r"(?im)^(?:total|amount due|invoice total)\s*:\s*\$?\s*([0-9,]+(?:\.[0-9]{2})?)")
+GST_LINE = re.compile(r"(?im)^gst(?:\s+amount)?\s*:\s*\$?\s*([0-9,]+(?:\.[0-9]{2})?)")
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".heic", ".heif"}
 PDF_SUFFIXES = {".pdf"}
 
@@ -35,6 +37,7 @@ class BillReading:
     invalid_abns: list[str] = field(default_factory=list)
     bill_date: date | None = None
     total: Decimal | None = None
+    gst: Decimal | None = None
     used_confirmed: bool = False
 
 
@@ -83,7 +86,8 @@ def read_bills(
     readings_path: Path | None = None,
     confirmed: dict[str, str] | None = None,
     hints: dict[str, str] | None = None,
-) -> tuple[list[Flag], list[HardNote], list[tuple[str, date | None, str, Transaction | None, str]]]:
+    rules: Rules | None = None,
+) -> tuple[list[Flag], list[HardNote], list[tuple[str, date | None, str, Transaction | None, str]], list[BillReading]]:
     """Return warnings, hard-log rows, and ABNs safe to confirm with the ABR.
 
     The tuples are (abn, bill date, supplier, matched transaction or None, file name).
@@ -92,18 +96,21 @@ def read_bills(
     flags: list[Flag] = []
     hard: list[HardNote] = []
     to_confirm: list[tuple[str, date | None, str, Transaction | None, str]] = []
+    found: list[BillReading] = []
     confirmed = confirmed or {}
     hints = hints or {}
+    active_rules = rules or load_rules()
     if not folder.is_dir():
-        return flags, hard, to_confirm
+        return flags, hard, to_confirm, found
     files = sorted(
         path for path in folder.iterdir()
         if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES | PDF_SUFFIXES
     )
     for path in files:
         reading = _read_one(path, readings.get(path.name))
-        _decide(reading, transactions, confirmed, hints, flags, hard, to_confirm)
-    return flags, hard, to_confirm
+        found.append(reading)
+        _decide(reading, transactions, confirmed, hints, flags, hard, to_confirm, active_rules)
+    return flags, hard, to_confirm, found
 
 
 def _decide(
@@ -114,10 +121,11 @@ def _decide(
     flags: list[Flag],
     hard: list[HardNote],
     to_confirm: list[tuple[str, date | None, str, Transaction | None, str]],
+    rules: Rules,
 ) -> None:
     if reading.unreadable:
         _warn(
-            flags, hard, reading, transactions, "bill_unreadable", "This bill could not be read",
+            flags, hard, reading, transactions, rules, "bill_unreadable", "This bill could not be read",
             reading.unreadable_reason + _hint_note(reading, hints),
             "Ask Claude or Codex to read this file, or send a text PDF. No ABN was guessed.",
         )
@@ -125,7 +133,7 @@ def _decide(
     if len(reading.valid_abns) > 1:
         shown = ", ".join(_grouped(number) for number in reading.valid_abns)
         _warn(
-            flags, hard, reading, transactions, "bill_several_abns", "This bill shows more than one ABN",
+            flags, hard, reading, transactions, rules, "bill_several_abns", "This bill shows more than one ABN",
             f"The bill shows more than one valid ABN ({shown}). None of them was used.",
             "Check which number is the supplier's ABN and say which one to confirm. Do not claim GST from a number you have not chosen.",
         )
@@ -133,7 +141,7 @@ def _decide(
     if reading.invalid_abns and not reading.valid_abns:
         shown = ", ".join(_grouped(number) for number in reading.invalid_abns)
         _warn(
-            flags, hard, reading, transactions, "bill_bad_checksum", "The ABN on this bill fails the checksum",
+            flags, hard, reading, transactions, rules, "bill_bad_checksum", "The ABN on this bill fails the checksum",
             f"The bill labels {shown} as an ABN, but it fails the official ABN checksum, so it cannot be a real ABN. It was not used.",
             "Read the digits again from the bill. If they still fail the checksum, ask the supplier for the ABN on their tax invoice.",
         )
@@ -143,19 +151,19 @@ def _decide(
         if remembered and abn_is_valid(remembered):
             reading.used_confirmed = True
             _warn(
-                flags, hard, reading, transactions, "bill_no_abn", "No ABN was printed on this bill",
+                flags, hard, reading, transactions, rules, "bill_no_abn", "No ABN was printed on this bill",
                 "No ABN was printed on this bill. The ABR check, if it is on, will use only the ABN you confirmed earlier for this supplier. That is a memory, not a number read from this page.",
                 "If the bill should show an ABN, ask for a clearer copy. Otherwise leave the confirmed ABN as it is.",
             )
-            _queue(reading, remembered, transactions, flags, hard, to_confirm)
+            _queue(reading, remembered, transactions, flags, hard, to_confirm, rules)
             return
         _warn(
-            flags, hard, reading, transactions, "bill_no_abn", "No ABN was found on this bill",
+            flags, hard, reading, transactions, rules, "bill_no_abn", "No ABN was found on this bill",
             "No ABN label with 11 digits was on this bill. No number was guessed." + _hint_note(reading, hints),
             "Look at the bill again, or tell me the ABN if you can see it and I will save it only after the checksum passes.",
         )
         return
-    _queue(reading, reading.valid_abns[0], transactions, flags, hard, to_confirm)
+    _queue(reading, reading.valid_abns[0], transactions, flags, hard, to_confirm, rules)
 
 
 def _queue(
@@ -165,11 +173,12 @@ def _queue(
     flags: list[Flag],
     hard: list[HardNote],
     to_confirm: list[tuple[str, date | None, str, Transaction | None, str]],
+    rules: Rules,
 ) -> None:
-    matches = _match(reading, transactions)
+    matches = _match(reading, transactions, rules)
     if not matches:
         _warn(
-            flags, hard, reading, transactions, "bill_unmatched", "This bill did not match a transaction",
+            flags, hard, reading, transactions, rules, "bill_unmatched", "This bill did not match a transaction",
             f"The ABN {_grouped(abn)} was read from the bill, but no purchase matched the supplier, date and amount. It was not attached to a line.",
             "Check the supplier name, the invoice date and the total against the export. If the purchase is missing, it is not in this BAS file.",
         )
@@ -179,15 +188,15 @@ def _queue(
         to_confirm.append((abn, reading.bill_date or transaction.date, reading.supplier, transaction, reading.file_name))
 
 
-def _match(reading: BillReading, transactions: list[Transaction]) -> list[Transaction]:
+def _match(reading: BillReading, transactions: list[Transaction], rules: Rules) -> list[Transaction]:
     strong: list[Transaction] = []
     for transaction in transactions:
         if transaction.side != "purchase":
             continue
         if not _same_supplier(reading.supplier, transaction.contact):
             continue
-        amount_ok = reading.total is None or _same_money(reading.total, transaction)
-        date_ok = reading.bill_date is None or reading.bill_date == transaction.date
+        amount_ok = reading.total is None or _same_money(reading.total, transaction, rules)
+        date_ok = _date_ok(reading, transaction, rules)
         if amount_ok and date_ok:
             strong.append(transaction)
     if len(strong) <= 1:
@@ -203,12 +212,13 @@ def _warn(
     hard: list[HardNote],
     reading: BillReading,
     transactions: list[Transaction],
+    rules: Rules,
     code: str,
     title: str,
     why: str,
     fix: str,
 ) -> None:
-    matches = _match(reading, transactions)
+    matches = _match(reading, transactions, rules)
     attached = matches[0] if len(matches) == 1 else None
     labelled = ""
     if len(reading.valid_abns) == 1:
@@ -280,8 +290,15 @@ def _read_one(path: Path, agent: dict | None) -> BillReading:
             total = parse_money(total_match.group(1))
         except ValueError:
             total = None
+    gst = None
+    gst_match = GST_LINE.search(text)
+    if gst_match:
+        try:
+            gst = parse_money(gst_match.group(1))
+        except ValueError:
+            gst = None
     valid, invalid = extract_labelled_abns(text)
-    return BillReading(path.name, supplier, text, False, "", valid, invalid, bill_date, total)
+    return BillReading(path.name, supplier, text, False, "", valid, invalid, bill_date, total, gst)
 
 
 def _pdf_text(path: Path) -> str | None:
@@ -367,12 +384,25 @@ def _same_supplier(left: str, right: str) -> bool:
     b = _key(right)
     if not a or not b:
         return False
-    return a == b or a in b or b in a
+    if a == b or a in b or b in a:
+        return True
+    left_tokens = set(a.split())
+    right_tokens = set(b.split())
+    if not left_tokens or not right_tokens:
+        return False
+    shared = len(left_tokens & right_tokens)
+    return shared / len(left_tokens | right_tokens) >= 0.5
 
 
-def _same_money(total: Decimal, transaction: Transaction) -> bool:
-    inclusive = transaction.inclusive.copy_abs() if hasattr(transaction.inclusive, "copy_abs") else abs(transaction.inclusive)
-    return abs(inclusive - total) <= Decimal("0.05") or abs(abs(transaction.net) - total) <= Decimal("0.05")
+def _date_ok(reading: BillReading, transaction: Transaction, rules: Rules) -> bool:
+    if reading.bill_date is None:
+        return True
+    return abs((reading.bill_date - transaction.date).days) <= rules.bill_date_tolerance_days
+
+
+def _same_money(total: Decimal, transaction: Transaction, rules: Rules) -> bool:
+    inclusive = abs(transaction.inclusive)
+    return abs(inclusive - total) <= rules.tolerance or abs(abs(transaction.net) - total) <= rules.tolerance
 
 
 def _key(value: str) -> str:

@@ -1,0 +1,10 @@
+{
+  "codes": [
+    {
+      "description": "Pouch restock",
+      "suggest": "GST on Expenses",
+      "why": "A courier pouch is usually a taxable purchase."
+    }
+  ],
+  "personal": []
+}

@@ -71,4 +71,8 @@ date,type,contact,description,account,net_amount,gst_amount,tax_code,supplier_ab
 2026-07-27,purchase,Harrow Equipment,Drawing table,General expenses,300.00,30.00,GST on Expenses,22222222222,INV-2470
 2026-08-06,purchase,Kindling Software,Plugin licence,Software,150.00,15.00,GST on Expenses,33333333333,INV-2471
 2026-08-17,purchase,Bluegum Hosting,Site hosting,Software,140.00,14.00,GST on Expenses,44444444444,INV-2472
+2026-07-17,purchase,Nettle Insurance,Insurance premium,Insurance,180.00,0.00,GST Free,,INV-2473
+2026-08-03,purchase,Companies Register,Stamp duty on the lease,Filing fees,90.00,9.00,GST on Expenses,,INV-2474
+2026-08-19,purchase,Riverbend Bank,Netflix subscription,Staff amenities,15.90,1.59,GST on Expenses,,INV-2475
+2026-09-05,purchase,Parcel Counter,Pouch restock,Office expenses,40.00,0.00,GST Free,,INV-2476
 2026-07-11,purchase,Lumen Stationery,Copy paper,Office expenses,50.00,5.00,GST on Expenses,11111111111,INV-2465

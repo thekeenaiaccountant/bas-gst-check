@@ -9,7 +9,9 @@ from pathlib import Path
 
 from bas_gst_check.abr import confirm_bill_abns
 from bas_gst_check.billread import read_bills
+from bas_gst_check.billmatch import compare_bills
 from bas_gst_check.checks import run_checks
+from bas_gst_check.explain import explain_bas
 from bas_gst_check.learning import (
     confirmed_abns,
     earlier_lines,
@@ -33,10 +35,21 @@ from bas_gst_check.review_log import (
 )
 from bas_gst_check.rules import Rules, load_rules
 from bas_gst_check.settings import Settings, load_settings
+from bas_gst_check.suggestions import load_ai_suggestions, suggest_flags
 from bas_gst_check.summarise import summarise
+from bas_gst_check.suppliers import (
+    account_totals,
+    earlier_quarter,
+    load_history,
+    purchase_totals,
+    remember_quarter,
+    supplier_flags,
+)
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "fennel-street-workshop.json"
 EXAMPLE_BILLS = EXAMPLE.parent / "bills"
+EXAMPLE_PREVIOUS = EXAMPLE.parent / "fennel-street-previous.json"
+EXAMPLE_SUGGESTIONS = EXAMPLE.parent / "suggestions.json"
 MIME = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -70,6 +83,8 @@ def execute(
     fetch=None,
     bills_dir: Path | None = None,
     readings_path: Path | None = None,
+    previous_path: Path | None = None,
+    suggestions_path: Path | None = None,
 ) -> RunResult:
     active_settings = settings or load_settings()
     active_rules = _rules_with_overrides(rules or load_rules(), active_settings)
@@ -97,13 +112,19 @@ def execute(
     flags = run_checks(loaded.transactions, period, active_rules)
     bill_folder = _bills_folder(source, bills_dir)
     learned = load_learning(learning_path(state))
-    bill_flags, hard_notes, to_confirm = read_bills(
+    bill_flags, hard_notes, to_confirm, readings = read_bills(
         bill_folder,
         loaded.transactions,
         readings_path=readings_path,
         confirmed=confirmed_abns(learned),
         hints=hints(learned),
-    ) if bill_folder else ([], [], [])
+        rules=active_rules,
+    ) if bill_folder else ([], [], [], [])
+    flags.extend(compare_bills(readings, loaded.transactions, active_rules))
+    suggestion_file, prior_file = _example_extras(source, suggestions_path, previous_path)
+    flags.extend(suggest_flags(loaded.transactions, active_rules, load_ai_suggestions(suggestion_file)))
+    prior_purchases, prior_accounts = _prior_totals(prior_file, state, period, active_rules)
+    flags.extend(supplier_flags(loaded.transactions, prior_purchases, active_rules))
     flags.extend(bill_flags)
     hard_lines = remember_hard(learned, hard_notes)
     hard_lines.extend(earlier_lines(learned, {note.file_name for note in hard_notes}))
@@ -147,6 +168,13 @@ def execute(
         bills_provided=bill_folder is not None,
         theme="pooja" if active_settings.brand == "preset" else "",
         timezone_name=active_settings.timezone,
+        explanation=explain_bas(
+            summary,
+            purchase_totals(loaded.transactions),
+            prior_purchases,
+            account_totals(loaded.transactions),
+            prior_accounts,
+        ),
     )
     output.mkdir(parents=True, exist_ok=True)
     html_path = output / "bas-gst-check.html"
@@ -161,7 +189,40 @@ def execute(
         period.end.isoformat(),
         business,
     )
+    remember_quarter(
+        state / "supplier-history.json",
+        f"{period.start.isoformat()}:{period.end.isoformat()}",
+        purchase_totals(loaded.transactions),
+        account_totals(loaded.transactions),
+    )
     return RunResult(html_path, csv_path, [], summary, flags, abr.mode)
+
+
+def _example_extras(
+    source: Path,
+    suggestions_path: Path | None,
+    previous_path: Path | None,
+) -> tuple[Path | None, Path | None]:
+    if source.name.startswith("fennel-street") and "previous" not in source.name:
+        if suggestions_path is None and EXAMPLE_SUGGESTIONS.is_file():
+            suggestions_path = EXAMPLE_SUGGESTIONS
+        if previous_path is None and EXAMPLE_PREVIOUS.is_file():
+            previous_path = EXAMPLE_PREVIOUS
+    return suggestions_path, previous_path
+
+
+def _prior_totals(previous_path: Path | None, state: Path, period: Period, rules: Rules):
+    if previous_path is not None and previous_path.is_file():
+        loaded = load_transactions(previous_path, rules)
+        if not loaded.errors:
+            return purchase_totals(loaded.transactions), account_totals(loaded.transactions)
+    history = earlier_quarter(
+        load_history(state / "supplier-history.json"),
+        f"{period.start.isoformat()}:{period.end.isoformat()}",
+    )
+    if history is None:
+        return None, None
+    return history
 
 
 def _bills_folder(source: Path, bills_dir: Path | None) -> Path | None:

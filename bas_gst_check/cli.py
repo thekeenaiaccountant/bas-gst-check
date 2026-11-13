@@ -33,6 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--state", default=".local")
     run_parser.add_argument("--bills", help="Folder of supplier bills (PDF or photo)")
     run_parser.add_argument("--readings", help="JSON of text read from bills by Claude or Codex")
+    run_parser.add_argument("--previous", help="Previous quarter export, for new suppliers and spend changes")
+    run_parser.add_argument("--suggestions", help="JSON of GST-code suggestions from Claude or Codex")
 
     note_parser = commands.add_parser("note", help="Mark a flag fixed, ignored, or open again")
     note_parser.add_argument("flag_id", help="The id from the latest report, such as F-01")
@@ -87,6 +89,8 @@ def _run(args: argparse.Namespace) -> int:
         brand=args.brand,
         bills_dir=Path(args.bills) if args.bills else None,
         readings_path=Path(args.readings) if args.readings else None,
+        previous_path=Path(args.previous) if args.previous else None,
+        suggestions_path=Path(args.suggestions) if args.suggestions else None,
     )
     if result.errors:
         print("The file could not be checked.")
@@ -94,10 +98,14 @@ def _run(args: argparse.Namespace) -> int:
             print(f"- {error}")
         return 1
     errors = sum(1 for flag in result.flags if flag.severity == "error")
-    reviews = sum(1 for flag in result.flags if flag.severity == "review")
+    invoices = sum(1 for flag in result.flags if flag.code == "tax_invoice")
+    hints = sum(1 for flag in result.flags if flag.severity == "review" and flag.code != "tax_invoice")
     print(f"HTML report: {result.html_path}")
     print(f"Flagged rows: {result.csv_path}")
-    print(f"Lines to fix: {errors}. Tax invoices to have on file: {reviews}. Those reminders are not mistakes.")
+    print(
+        f"Lines to fix: {errors}. Tax invoices to have on file: {invoices}. "
+        f"Suggestions to check: {hints}. Those reminders are not mistakes."
+    )
     if result.summary:
         print(
             f"Draft net GST: {result.summary.net} "

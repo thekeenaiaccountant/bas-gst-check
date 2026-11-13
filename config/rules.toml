@@ -24,6 +24,14 @@ capital_purchase_threshold = "1000.00"
 # Seconds to wait for one ABR ABN lookup before giving up on that supplier.
 abr_timeout_seconds = 8
 
+# A bill can match a line when the dates are this many days apart.
+bill_date_tolerance_days = 3
+
+# Flag a supplier whose purchases are up by at least this percent, and at
+# least supplier_jump_floor dollars, compared with the previous quarter.
+supplier_jump_percent = "50"
+supplier_jump_floor = "200.00"
+
 # Phrases that usually mean no GST should be charged or claimed.
 # Matched on the description and the account name.
 
@@ -114,6 +122,22 @@ capital_item_phrases = [
 # Hire, lease and repairs are not capital purchases for G10.
 not_capital_phrases = ["hire", "lease", "rental", "repair", "repairs"]
 
+# Wording that may be personal. Neutral hint only. It is not a finding that the spend is private.
+personal_phrases = [
+  "grocery",
+  "groceries",
+  "supermarket",
+  "woolworths",
+  "coles",
+  "netflix",
+  "spotify",
+  "stan",
+  "disney+",
+  "streaming",
+  "gym",
+  "uber eats",
+]
+
 # Accounts that mean the line is already recorded as capital (draft G10).
 capital_account_phrases = [
   "computer equipment",
@@ -146,3 +170,36 @@ purchase_account_phrases = [
   "amenities",
   "accounting",
 ]
+
+# Wording hints for a suggested GST code. These are suggestions, not rulings.
+# The report always says to check them.
+
+[[code_suggestions]]
+id = "bank"
+suggest = "BAS Excluded"
+note = "Suggestion, check it. Bank fees are usually input taxed, so the code is GST-free or BAS Excluded, not GST on Expenses."
+phrases = ["bank fee", "bank charge", "account keeping", "account fee"]
+
+[[code_suggestions]]
+id = "interest"
+suggest = "BAS Excluded"
+note = "Suggestion, check it. Interest is a financial supply and is usually GST-free or BAS Excluded."
+phrases = ["interest received", "interest income", "interest charged"]
+
+[[code_suggestions]]
+id = "stamp_duty"
+suggest = "BAS Excluded"
+note = "Suggestion, check it. Stamp duty is usually GST-free or BAS Excluded."
+phrases = ["stamp duty"]
+
+[[code_suggestions]]
+id = "govt_fee"
+suggest = "BAS Excluded"
+note = "Suggestion, check it. Government fees are usually GST-free or BAS Excluded."
+phrases = ["government fee", "govt fee", "council rates"]
+
+[[code_suggestions]]
+id = "insurance"
+suggest = "GST on Expenses"
+note = "Suggestion, check it. Insurance usually includes GST. The stamp duty on the same invoice does not, so that portion stays out of 1B."
+phrases = ["insurance premium", "insurance"]

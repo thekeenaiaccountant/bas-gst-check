@@ -127,7 +127,8 @@ h1 {
   font-variant-numeric: tabular-nums;
 }
 
-.guidline, .quiet { margin: 0.75rem 0 0; }
+.guidline, .quiet, .explain { margin: 0.75rem 0 0; }
+.explain { max-width: 52rem; }
 
 .status, details.fold {
   margin: 0.85rem 0 0;
@@ -144,6 +145,7 @@ h1 {
   letter-spacing: -0.01em;
 }
 
+.status.plain h2 { background: transparent; color: var(--ink); }
 .status.bad h2 { background: var(--bad-bg); color: var(--bad); }
 .status.warn h2 { background: var(--warn-bg); color: var(--warn); }
 details.fold.good > summary { background: var(--good-bg); color: var(--good); }
@@ -238,6 +240,7 @@ body.pooja details.fold {
 body.pooja .figure strong,
 body.pooja .splitline strong { color: #021A54; }
 body.pooja .figure em.good { color: #0E7A43; }
+body.pooja .status.plain h2 { background: #FFFFFF; color: #021A54; }
 body.pooja .status.bad h2 { background: #FDECEC; color: #9B1C1C; }
 body.pooja .status.warn h2 { background: #FFF0D6; color: #9A5B00; }
 body.pooja details.fold.good > summary { background: #DDF6E8; color: #0E7A43; }

@@ -13,7 +13,7 @@ If `my-settings.toml` does not exist, set it up before the first real check. Ask
 1. What name should be printed on the report?
 2. Do you lodge the BAS quarterly or monthly? Which dates does this file cover? Do not guess the quarter from the dates in the file.
 3. Is GST accounted for on a cash basis or an accrual basis?
-4. Should the first check use the made-up example, or a JSON, CSV or Excel export you already have?
+4. Should the first check use the made-up example, or a JSON, CSV or Excel export you already have? Say that the usual path is an export. This check does not connect to Xero and it never writes back. If they use Xero, point them at `docs/xero-access.md` for the Account Transactions export, the bills folder, and the GST cross-check. Do not ask them to connect Xero on the first run. If they later want a connector, it is read-only, and the scopes in that file are the only ones to allow. Tell them to practise on Xero's Demo Company before a live file.
 5. Before that question, explain in one or two sentences: the ABN check reads the supplier's ABN off the bill itself, then, if they have a free ABR GUID, checks that the ABN is still active and the supplier was registered for GST. It catches GST claimed from a supplier who is not GST-registered, or whose ABN is cancelled. It is optional and free. Then ask, in these words: Do you already have an ABR GUID? (yes / no, help me get one / skip for now)
 
 Write the answers only into `my-settings.toml` (copy the shape from `my-settings.example.toml`).
@@ -50,6 +50,18 @@ Before you read a photo or PDF, tell them the checker program sends nothing, but
 5. If they tell you the ABN from a bill, run `python -m bas_gst_check confirm-abn --supplier "Name" --abn "the digits"`. The tool saves it only when the checksum passes, in the gitignored learning log.
 
 Text PDFs are the easiest. Photos and scans are fine because you can see them. The local program, without you, can read text PDFs by itself and will say when a photo is unreadable.
+
+## Suggestions you may add
+
+The program already suggests a GST code from the wording table in `config/rules.toml`, and it already flags phrases that may be personal. Both are hints. The report says "Suggestion, check it" or "May be personal, check". Do not tell them the code is definitely wrong.
+
+When a description is not in that table and you have read the bill or the line:
+
+1. You may add one suggestion to `.local/code-suggestions.json`. Shape: `{"codes": [{"description": "the words on the line", "suggest": "GST on Expenses", "why": "one sentence"}], "personal": []}`. For a line that may be personal, put `{"description": "the words"}` in `personal` instead. Use neutral words. Do not say the spend is private. Say it may be personal and they should check.
+2. Run the check again with `--suggestions .local/code-suggestions.json` if it is not the example. The example already has a made-up suggestions file.
+3. A previous quarter export, if they have one, is `--previous path/to/that-file.csv`. Otherwise the program remembers supplier totals in `.local/` and compares the next different quarter. New suppliers and a jump in spend are suggestions, not errors.
+
+The report has a short paragraph under the totals. It is calculated from the numbers. When you talk about it, you may rephrase those sentences. Do not add advice, do not change the figures, and do not say what they should lodge.
 
 ## Running a check
 

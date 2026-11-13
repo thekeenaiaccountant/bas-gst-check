@@ -12,6 +12,10 @@ The picture uses the Pooja K preset: a white page, navy text, and a little pink.
 
 This copy is private for now. Do not publish the repository. The licence, when you do share it, is MIT.
 
+## Xero: export first
+
+Nothing here connects to Xero, and nothing is written back. The usual path is an Excel or CSV export plus a folder of bill PDFs. The exact report names, and the read-only scopes if you later connect Xero inside Claude or Codex, are in [Xero access](docs/xero-access.md). Practise on Xero's Demo Company before a live file.
+
 ## Start here
 
 If the app says Python is missing, it should try `python3`. On a Mac, install Python from python.org if neither `python` nor `python3` works. On Windows, install Python from python.org and tick "Add python.exe to PATH".
@@ -50,12 +54,13 @@ Use the id from the report you are looking at. The same line keeps the same numb
 
 The picture above is the made-up example with the made-up ABR answers, so each supplier section has a row. A run without a GUID does not call the ABR. It says once that GST registration could not be checked.
 
-- The business, the period, and one row for **G1**, **1A**, **1B** and net GST. **G10** and **G11** sit on the line under that.
+- The business, the period, and one row for **G1**, **1A**, **1B** and net GST. **G10** and **G11** sit on the line under that. Two or three lines under the totals explain the draft net GST in plain words. That paragraph is from the numbers. It is not advice.
 - **Not registered for GST, but GST was claimed.** The ABR says there is no GST registration, or the ABN is cancelled, and the file still has GST on that bill.
 - **ABN not found.** No ABN on the bill, or the page could not be read.
 - **ABN found and GST registered.** The count only. Open it if you want the list.
+- **Bills vs Xero.** A bill with no matching line, a GST claim with no bill, or GST on the bill that does not match the file.
 - Without a GUID, the first section is **Couldn't check GST registration**.
-- Everything else (the one-eleventh check, GST-free wording, duplicates, dates, tax invoices over $82.50, capital purchases, unknown codes, and since last time) is under **Other checks**, folded shut.
+- **Other checks** stays folded. It holds the one-eleventh check, duplicates, dates, tax invoices over $82.50, capital purchases, unknown codes, since last time, and the suggestions: a possible GST code, spend that may be personal, and suppliers that are new or have jumped. Those suggestions say to check them. They are not mistakes by themselves.
 - One footer line: not tax advice, GST part of the BAS only, and do not email this folder.
 
 The draft uses the amounts in the file. It does not silently rewrite them. GST adjustments such as bad debts or private use are not included. Cash basis means the file should be amounts you received or paid in the period. Accrual basis means invoices and bills for the period. The tool does not invent a second date.
@@ -64,7 +69,7 @@ The draft uses the amounts in the file. It does not silently rewrite them. GST a
 
 Use the same dates as the BAS, and the same cash or accrual basis you lodge on.
 
-**Xero.** Open the Reporting menu, choose All reports, and search for Account Transactions. Set the dates. Under More, choose Cash or Accrual to match the BAS. Update the report, then export it to Excel. [Xero: report settings, including export](https://central.xero.com/s/article/Select-contents-and-display-order-in-a-new-report).
+**Xero.** Export Account Transactions for the BAS dates, on the same cash or accrual basis, plus the bill PDFs. The menu path and the optional read-only connection are in [Xero access](docs/xero-access.md). [Xero: report settings, including export](https://central.xero.com/s/article/Select-contents-and-display-order-in-a-new-report).
 
 **MYOB.** Open Reporting, then GST/Tax, and run the GST detail report for the period (accrual/invoice or cash/payments, matching the BAS). Export that report. You can also export the sales and purchases journals from Settings, Import and export data, Export. [MYOB: GST reports](https://www.myob.com/au/support/myob-business/reporting/gst-tax-reports). [MYOB: export options](https://www.myob.com/au/support/myob-business/import-export/exporting-data/export-options).
 

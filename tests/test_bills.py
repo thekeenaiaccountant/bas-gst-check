@@ -31,7 +31,7 @@ def test_a_qr_payload_is_used_only_when_it_is_the_abn():
 
 def test_example_bills_cover_each_warning(tmp_path: Path):
     loaded = load_transactions(Path("examples/fennel-street-workshop.json"), load_rules())
-    flags, hard, confirm = read_bills(BILLS, loaded.transactions)
+    flags, hard, confirm, _readings = read_bills(BILLS, loaded.transactions)
     codes = {flag.code for flag in flags}
     assert {
         "bill_no_abn",
