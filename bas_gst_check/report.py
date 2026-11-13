@@ -169,7 +169,14 @@ def _body(
         )
     if period_warning:
         parts.append(f'<p class="example-banner">{html.escape(period_warning)}</p>')
-    parts.append(_figures(summary))
+    if summary.left_out:
+        parts.append(
+            '<section class="disclaimer"><strong>These draft figures are incomplete.</strong> '
+            f"<p>{summary.left_out} line{'s were' if summary.left_out != 1 else ' was'} left out because the tax code "
+            "or the sale/purchase side was not recognised. This is not a nil BAS. "
+            "Do not lodge these numbers until those lines are coded.</p></section>"
+        )
+    parts.append(_figures(summary, basis))
     parts.append(_split(summary))
     parts.append("<h2>Since last time</h2>")
     parts.append(_since(comparison, summary))
@@ -203,8 +210,9 @@ def _body(
     parts.append("<h2>Sources</h2>")
     parts.append(_sources())
     parts.append(
-        '<footer class="end"><p>bas-gst-check keeps the run, your notes and any ABR answers in a local folder on this computer. '
-        "It does not lodge a BAS and it does not send the transaction file anywhere.</p></footer>"
+        '<footer class="end"><p>This checker sends nothing. It keeps the run, your notes and any ABR answers in a local folder. '
+        "A photo or PDF that Claude or Codex reads is sent to that AI company. "
+        "Do not zip this folder and email it. It does not lodge a BAS.</p></footer>"
     )
     parts.append("</main>")
     return "\n".join(parts)
@@ -239,7 +247,7 @@ def _header(business: str, period: Period, basis: str, bas_period: str, logo_htm
 <header class="top">
   <div>
     {logo_html}
-    <p class="eyebrow">Pre-lodgement GST check</p>
+    <p class="eyebrow">GST part of the BAS only</p>
     <h1>{html.escape(business)}</h1>
     <p class="lede">{html.escape(period_label(period.start, period.end))} · {rhythm} · {basis_label} · Prepared on this computer</p>
   </div>
@@ -251,21 +259,34 @@ def _header(business: str, period: Period, basis: str, bas_period: str, logo_htm
 def _disclaimer() -> str:
     return (
         '<section class="disclaimer"><strong>Not tax advice.</strong> '
-        "<p>This is a pre-lodgement checker. It flags likely mistakes in the file you gave it. "
-        "It does not lodge, pay, or approve a BAS. Confirm the figures with a registered BAS or tax agent before you lodge.</p></section>"
+        "<p>This is a pre-lodgement checker for the GST part of the BAS only. It does not lodge, pay, or approve a BAS. "
+        "Confirm the figures with a registered BAS or tax agent before you lodge. "
+        "Do not zip this folder and email it. It can hold your file, your GUID and notes that should stay on this computer.</p></section>"
     )
 
 
-def _figures(summary: Summary) -> str:
-    position = {"payable": "Payable", "refundable": "Refundable", "nil": "Nil"}[summary.position]
-    net = money_text(abs(summary.net)) if summary.position != "nil" else money_text(summary.net)
+def _figures(summary: Summary, basis: str) -> str:
+    unusable = summary.left_out and summary.g1 == 0 and summary.gst_on_sales == 0 and summary.gst_on_purchases == 0
+    if unusable:
+        position = "Not a usable BAS"
+        net_class = "payable"
+    else:
+        position = {"payable": "Payable", "refundable": "Refundable", "nil": "Nil"}[summary.position]
+        net_class = summary.position
+    net = money_text(abs(summary.net)) if summary.position != "nil" and not unusable else money_text(summary.net)
+    basis_note = (
+        "Cash basis: only money received or paid in this period belongs here."
+        if basis == "cash"
+        else "Accrual basis: invoices and bills for this period belong here."
+    )
     return f"""
 <section class="figures" aria-label="Draft BAS summary">
   <article class="figure"><span>G1 total sales</span><strong>{money_text(summary.g1)}</strong><em>GST-inclusive</em></article>
   <article class="figure"><span>1A GST on sales</span><strong>{money_text(summary.gst_on_sales)}</strong><em>As recorded</em></article>
   <article class="figure"><span>1B GST on purchases</span><strong>{money_text(summary.gst_on_purchases)}</strong><em>As recorded</em></article>
-  <article class="figure {summary.position}"><span>Net GST</span><strong>{net}</strong><em>{position}</em></article>
+  <article class="figure {net_class}"><span>Net GST</span><strong>{net}</strong><em>{position}</em></article>
 </section>
+<p class="example-banner">Do not copy these onto the BAS until the red lines are cleared. {html.escape(basis_note)} These totals are only right if the file is already the list you lodge on that basis.</p>
 """
 
 
@@ -326,7 +347,8 @@ def _abn_help(bills_provided: bool) -> str:
     return (
         '<section class="panel"><p><strong>How supplier ABNs are read.</strong> '
         "The number has to be on the bill, next to the word ABN. Text PDFs work best on this computer. "
-        "Photos, scans, HEIC files and QR codes are clearest when Claude or Codex looks at the file. "
+        "Photos, scans and HEIC files are not read here. Claude or Codex has to look at them, and that sends the picture to that AI company. "
+        "A QR code needs the app to read it, or an optional free decoder on this computer. "
         "A number is never guessed. If you have saved a free ABR GUID, that ABN is then checked only to see "
         "if it is active and the supplier was registered for GST. "
         f"{html.escape(where)} "
@@ -416,7 +438,7 @@ def _invoice_section(invoices: list[Flag], notes: dict[str, Note]) -> str:
     )
     sample = invoices[0]
     return (
-        "<details open>"
+        "<details>"
         f"<summary><h2>Tax invoices to have on file ({len(invoices)})</h2></summary>"
         '<section class="panel"><p>Each of these claims a GST credit above the tax-invoice threshold. '
         "The check cannot see the document. Confirm it is on file before the credit stays in 1B.</p>"
@@ -463,6 +485,23 @@ def _sources() -> str:
         for url in pages
     )
     return f'<ul class="sources">{items}</ul>'
+
+
+def render_error_html(business: str, errors: list[str]) -> str:
+    items = "".join(f"<li>{html.escape(error)}</li>" for error in errors)
+    body = f"""
+<main class="wrap">
+  <p class="eyebrow">GST part of the BAS only</p>
+  <h1>{html.escape(business)}</h1>
+  <section class="disclaimer"><strong>This file could not be checked.</strong>
+  <p>No BAS figures were calculated. Fix the file, or name the quarter, and run the check again.</p>
+  <ul class="clean">{items}</ul></section>
+  <p>Do not copy anything from an older report onto the BAS. This checker sends nothing. Do not zip this folder and email it.</p>
+</main>
+"""
+    css = (PACKAGE_TEMPLATES / "report.css").read_text(encoding="utf-8")
+    template = Template((PACKAGE_TEMPLATES / "report.html.tpl").read_text(encoding="utf-8"))
+    return template.substitute(title=html.escape(f"Could not check — {business}"), css=css, body=body)
 
 
 def _pretty_stamp(value: str) -> str:

@@ -31,6 +31,8 @@ HEADER_ALIASES = {
     "description": "description",
     "details": "description",
     "narration": "description",
+    "memo": "description",
+    "memodescription": "description",
     "reference": "reference",
     "invoice": "reference",
     "invoicenumber": "reference",
@@ -42,6 +44,9 @@ HEADER_ALIASES = {
     "amount": "net",
     "lineamount": "net",
     "subtotal": "net",
+    "debit": "debit",
+    "credit": "credit",
+    "gross": "gross",
     "gst": "gst",
     "gstamount": "gst",
     "tax": "gst",
@@ -56,8 +61,47 @@ HEADER_ALIASES = {
     "g10": "capital",
 }
 
-SALE_TYPES = {"sale", "sales", "invoice", "receivable", "income", "credit"}
-PURCHASE_TYPES = {"purchase", "purchases", "bill", "spend", "expense", "supplier"}
+SALE_TYPES = {
+    "sale", "sales", "invoice", "receivable", "income", "credit",
+    "salesinvoice", "salesreceipt", "receivemoney", "customerinvoice",
+}
+PURCHASE_TYPES = {
+    "purchase", "purchases", "bill", "spend", "expense", "supplier",
+    "spendmoney", "payableinvoice", "supplierbill", "cheque", "check",
+    "expense", "billpayment",
+}
+
+# Plain names used by Xero, MYOB and QuickBooks Online Australia.
+# treatment, capital flag, side hint ("" when the row must say sale or purchase).
+CODE_TABLE = {
+    "gst": ("taxable", False, ""),
+    "gstonincome": ("taxable", False, "sale"),
+    "output": ("taxable", False, "sale"),
+    "gstonexpenses": ("taxable", False, "purchase"),
+    "gstonnoncapital": ("taxable", False, "purchase"),
+    "input": ("taxable", False, "purchase"),
+    "gstoncapital": ("taxable", True, "purchase"),
+    "gstoncapitalpurchases": ("taxable", True, "purchase"),
+    "cap": ("taxable", True, "purchase"),
+    "capexinput": ("taxable", True, "purchase"),
+    "gstfree": ("gst_free", False, ""),
+    "fre": ("gst_free", False, ""),
+    "gstfreeincome": ("gst_free", False, "sale"),
+    "gstfreeexpenses": ("gst_free", False, "purchase"),
+    "exemptoutput": ("gst_free", False, "sale"),
+    "exemptexpenses": ("gst_free", False, "purchase"),
+    "exp": ("gst_free", False, "sale"),
+    "exportsales": ("gst_free", False, "sale"),
+    "nt": ("bas_excluded", False, ""),
+    "basexcluded": ("bas_excluded", False, ""),
+    "baseexcluded": ("bas_excluded", False, ""),
+    "notreportable": ("bas_excluded", False, ""),
+    "outofscope": ("bas_excluded", False, ""),
+    "inp": ("input_taxed", False, ""),
+    "inputtaxed": ("input_taxed", False, ""),
+    "inputtax": ("input_taxed", False, ""),
+    "its": ("input_taxed", False, "sale"),
+}
 
 
 @dataclass
@@ -79,7 +123,11 @@ def load_transactions(path: Path, rules: Rules) -> LoadedFile:
         return _load_json(path, rules)
     if suffix == ".csv":
         return _load_csv(path, rules)
-    return LoadedFile(errors=["Use a .json or .csv file."])
+    if suffix == ".xlsx":
+        return _load_xlsx(path, rules)
+    return LoadedFile(errors=[
+        "Use a CSV, Excel (.xlsx), or JSON file. In Excel, you can also choose Save As and pick CSV."
+    ])
 
 
 def _load_json(path: Path, rules: Rules) -> LoadedFile:
@@ -126,13 +174,8 @@ def _load_csv(path: Path, rules: Rules) -> LoadedFile:
     if not reader.fieldnames:
         return LoadedFile(errors=["The CSV has no header row."])
     mapping = {_normalise_header(name): name for name in reader.fieldnames if name}
-    if "date" not in mapping or "net" not in mapping or "gst" not in mapping or "tax_code" not in mapping:
-        return LoadedFile(
-            errors=[
-                "The CSV needs columns for date, net amount, GST amount and tax code. "
-                "Contact, description and account should be there too."
-            ]
-        )
+    if not _headers_are_usable(mapping):
+        return LoadedFile(errors=[_missing_column_message("CSV")])
     rows = list(reader)
     if not rows:
         return LoadedFile(errors=["The file has no transactions."])
@@ -151,19 +194,18 @@ def _transaction_from_mapping(
 ) -> tuple[Transaction | None, str | None]:
     try:
         when = _parse_date(row.get("date"))
-        net = parse_money(row.get("net"))
-        gst = parse_money(row.get("gst"))
+        net, gst, amount_side = _amounts(row)
     except (ValueError, KeyError) as exc:
         return None, f"Row {row_number}: {exc}"
     label = str(row.get("tax_code") or "").strip()
     if not label:
         return None, f"Row {row_number}: the tax code is blank."
-    treatment, force_capital = _treatment(label)
-    explicit = _explicit_side(str(row.get("type") or ""))
+    treatment, force_capital, code_side = _treatment(label)
+    explicit = _explicit_side(str(row.get("type") or "")) or amount_side
     contact = str(row.get("contact") or "").strip() or "No contact"
     description = str(row.get("description") or "").strip()
     account = str(row.get("account") or "").strip()
-    side, conflict = _side(explicit, label, account, rules)
+    side, conflict = _side(explicit, code_side, account, rules)
     if not description:
         description = "(no description)"
     return (
@@ -187,40 +229,105 @@ def _transaction_from_mapping(
     )
 
 
-def _treatment(label: str) -> tuple[str, bool]:
+def _load_xlsx(path: Path, rules: Rules) -> LoadedFile:
+    try:
+        import openpyxl
+    except ImportError:
+        return LoadedFile(errors=[
+            "This is an Excel file. Ask the app to install the free reader, "
+            "or in Excel choose File, Save As, and pick CSV."
+        ])
+    try:
+        workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    except Exception:
+        return LoadedFile(errors=["The Excel file could not be opened. Try Save As CSV."])
+    sheet = workbook.active
+    rows = list(sheet.iter_rows(values_only=True))
+    workbook.close()
+    if not rows:
+        return LoadedFile(errors=["The Excel file has no rows."])
+    headers = [str(cell).strip() if cell is not None else "" for cell in rows[0]]
+    mapping = {_normalise_header(name): index for index, name in enumerate(headers) if name}
+    if not _headers_are_usable(mapping):
+        return LoadedFile(errors=[_missing_column_message("Excel")])
+    if len(rows) < 2:
+        return LoadedFile(errors=["The file has no transactions."])
+    loaded = LoadedFile()
+    for index, raw in enumerate(rows[1:], start=2):
+        if raw is None or all(cell in (None, "") for cell in raw):
+            continue
+        flattened = {}
+        for logical, column in mapping.items():
+            value = raw[column] if column < len(raw) else ""
+            flattened[logical] = "" if value is None else value
+        transaction, error = _transaction_from_mapping(index, flattened, rules)
+        if error:
+            loaded.errors.append(error)
+        elif transaction:
+            loaded.transactions.append(transaction)
+    if not loaded.transactions and not loaded.errors:
+        loaded.errors.append("The file has no transactions.")
+    return loaded
+
+
+def _headers_are_usable(mapping: dict) -> bool:
+    has_amount = "net" in mapping or "debit" in mapping or "credit" in mapping or "gross" in mapping
+    return "date" in mapping and "tax_code" in mapping and "gst" in mapping and has_amount
+
+
+def _missing_column_message(kind: str) -> str:
+    return (
+        f"This {kind} needs a date, a tax code, and amounts. "
+        "Amounts can be net and GST, or debit and credit with a tax column. "
+        "Contact, description and account should be there too. "
+        "If this came from Excel, you can also choose File, Save As, and pick CSV."
+    )
+
+
+def _amounts(row: dict) -> tuple[Decimal, Decimal, str]:
+    gst = parse_money(row.get("gst")) if _filled(row.get("gst")) else None
+    if _filled(row.get("net")):
+        return parse_money(row.get("net")), gst if gst is not None else Decimal("0"), ""
+    debit = parse_money(row.get("debit")) if _filled(row.get("debit")) else Decimal("0")
+    credit = parse_money(row.get("credit")) if _filled(row.get("credit")) else Decimal("0")
+    if debit or credit:
+        if debit and not credit:
+            return debit, gst if gst is not None else Decimal("0"), "purchase"
+        if credit and not debit:
+            return credit, gst if gst is not None else Decimal("0"), "sale"
+        if debit >= credit:
+            return debit - credit, gst if gst is not None else Decimal("0"), "purchase"
+        return credit - debit, gst if gst is not None else Decimal("0"), "sale"
+    if _filled(row.get("gross")) and gst is not None:
+        return parse_money(row.get("gross")) - gst, gst, ""
+    raise ValueError("the amount is blank")
+
+
+def _filled(value: object) -> bool:
+    return value not in (None, "") and str(value).strip() != ""
+
+
+def _treatment(label: str) -> tuple[str, bool, str]:
     key = re.sub(r"[^a-z]", "", label.lower())
-    if key in {"gstonincome"}:
-        return "taxable", False
-    if key in {"gstonexpenses"}:
-        return "taxable", False
-    if key in {"gstoncapital"}:
-        return "taxable", True
-    if key in {"gstfree", "gstfreeincome", "gstfreeexpenses", "freegst"}:
-        return "gst_free", False
-    if key in {"basexcluded", "basexclusions", "notreportable"}:
-        return "bas_excluded", False
-    if key in {"inputtaxed", "inputtaxedincome", "inputtaxedexpenses", "inputtaxedsales"}:
-        return "input_taxed", False
-    return "unknown", False
+    if key in CODE_TABLE:
+        treatment, capital, side = CODE_TABLE[key]
+        return treatment, capital, side
+    return "unknown", False, ""
 
 
 def _explicit_side(value: str) -> str:
     key = re.sub(r"[^a-z]", "", value.lower())
-    if not key:
-        return ""
     if key in SALE_TYPES:
         return "sale"
     if key in PURCHASE_TYPES:
         return "purchase"
-    return "unknown"
+    return ""
 
 
-def _side(explicit: str, label: str, account: str, rules: Rules) -> tuple[str, bool]:
-    implied = _side_from_code(label)
+def _side(explicit: str, code_side: str, account: str, rules: Rules) -> tuple[str, bool]:
+    implied = code_side if code_side in {"sale", "purchase"} else ""
     if explicit in {"sale", "purchase"}:
         return explicit, bool(implied and implied != explicit)
-    if explicit == "unknown":
-        return "unknown", False
     if implied:
         return implied, False
     sale = any_phrase(account, list(rules.sale_account_phrases))
@@ -230,15 +337,6 @@ def _side(explicit: str, label: str, account: str, rules: Rules) -> tuple[str, b
     if purchase and not sale:
         return "purchase", False
     return "unknown", False
-
-
-def _side_from_code(label: str) -> str:
-    key = re.sub(r"[^a-z]", "", label.lower())
-    if key == "gstonincome":
-        return "sale"
-    if key in {"gstonexpenses", "gstoncapital"}:
-        return "purchase"
-    return ""
 
 
 def _yes(value: object) -> bool:

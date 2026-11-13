@@ -1,0 +1,5 @@
+Date,Transaction type,Name,Memo,Account,Amount,Tax amount,Tax code
+2026-07-03,Invoice,Plover Shire Hall,Wayfinding concept,Sales,1000.00,100.00,GST
+2026-07-01,Bill,Sable Commercial,Studio rent,Rent,2200.00,220.00,GST
+2026-07-08,Invoice,Amberline Publishing,Export of printed posters,Sales,600.00,0.00,GST Free
+2026-07-15,Expense,Staff Wages,Fortnightly wages,Wages,3200.00,0.00,Out of Scope

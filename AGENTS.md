@@ -9,19 +9,16 @@ This is a pre-lodgement check, not tax advice, and it never lodges a BAS. Say th
 If `my-settings.toml` does not exist, set it up before the first real check. Ask **one question at a time**. Wait for the answer. Then ask the next.
 
 1. What name should be printed on the report?
-2. Do you lodge the BAS quarterly or monthly?
+2. Do you lodge the BAS quarterly or monthly? Which dates does this file cover? Do not guess the quarter from the dates in the file.
 3. Is GST accounted for on a cash basis or an accrual basis?
-4. For the colours, do you want the navy (`#021A54`) and pink (`#FF85BB`) preset, your own colours and an optional logo, or no special branding?
-5. Should the first check use the made-up example, or a JSON or CSV export you already have?
-6. Before that question, explain in one or two sentences: the ABN check reads the supplier's ABN off the bill itself, then, if they have a free ABR GUID, checks that the ABN is still active and the supplier was registered for GST. It catches GST claimed from a supplier who is not GST-registered, or whose ABN is cancelled. It is optional and free. Then ask, in these words: Do you already have an ABR GUID? (yes / no, help me get one / skip for now)
+4. Should the first check use the made-up example, or a JSON, CSV or Excel export you already have?
+5. Before that question, explain in one or two sentences: the ABN check reads the supplier's ABN off the bill itself, then, if they have a free ABR GUID, checks that the ABN is still active and the supplier was registered for GST. It catches GST claimed from a supplier who is not GST-registered, or whose ABN is cancelled. It is optional and free. Then ask, in these words: Do you already have an ABR GUID? (yes / no, help me get one / skip for now)
 
 Write the answers only into `my-settings.toml` (copy the shape from `my-settings.example.toml`).
 
 - Quarterly or monthly goes in `bas_period` as `quarterly` or `monthly`.
 - Cash or accrual goes in `gst_basis` as `cash` or `accrual`.
-- Preset branding: `brand = "preset"`.
-- Their own colours: `brand = "custom"`, then ask for the two hex codes and write them under `[brand_colours]`. If they have a logo, copy the image into `my-brand/` and set `logo` to the file name. Ask about the logo only after they have chosen their own colours.
-- No branding: `brand = "skip"`.
+- Leave branding as `skip` on the first run. After the first report is open, ask whether they want the navy (`#021A54`) and pink (`#FF85BB`) preset, their own colours and an optional logo, or to keep the plain look. Preset is `brand = "preset"`. Their own colours are `brand = "custom"` with hex codes under `[brand_colours]`. A logo is copied into `my-brand/`.
 - Example data: leave `data_file` blank.
 - Their own export: put the path in `data_file`. If the file does not name the quarter, ask for the start and end dates and set `period_start` and `period_end`.
 - If they skip the GUID, leave `abr_guid` empty. The report will say: ABN check is off: say "set up ABN check" to turn it on.
@@ -42,7 +39,9 @@ If `my-settings.toml` already exists, do not ask the questions again unless they
 
 When they say "check the bills in this folder", or they have a folder of supplier bills:
 
-1. Read each PDF or photo yourself. You can read text PDFs, scanned PDFs, JPG, PNG and HEIC, and a QR code on a bill.
+Before you read a photo or PDF, tell them the checker program sends nothing, but looking at the file sends it to the AI company behind this app.
+
+1. Read each PDF or photo yourself. Photos, scans, HEIC and QR codes need you to look at them. A QR code is not read by the program unless an optional free decoder is installed. You can read text PDFs, scanned PDFs, JPG, PNG and HEIC, and a QR code on a bill.
 2. Write only what you can see into `.local/bill-readings.json`, one item per file: `file`, `text` (the words on the page, including any line that starts with ABN), and `unreadable` true or false. Do not invent an ABN. Do not copy the image into the repository or into the JSON.
 3. Run `python -m bas_gst_check run --bills that/folder --readings .local/bill-readings.json` with their transaction file.
 4. If `.local/abn-learning.json` has a hint for that supplier, look in that place on the bill first.
@@ -52,11 +51,17 @@ Text PDFs are the easiest. Photos and scans are fine because you can see them. T
 
 ## Running a check
 
+If `python` is not found, run the same command with `python3`. If neither exists, say: on a Mac, install Python from python.org; on Windows, install Python from python.org and tick "Add python.exe to PATH".
+
+Before a real file, you must already know the quarter. If they have not named it, ask and write `period_start` and `period_end`. Do not run the check by guessing from the dates in the file. The example file already names its quarter.
+
 When they say "Run the BAS check on the example data", run:
 
 ```bash
 python -m bas_gst_check run --example
 ```
+
+If that fails because `python` is missing, use `python3 -m bas_gst_check run --example`.
 
 When they want their own file, run:
 
@@ -87,7 +92,8 @@ Use `ignored` or `open` the same way. The id has to be the one in the latest rep
 ## Rules you do not break
 
 - Do not lodge, pay, or mark the BAS approved.
-- Do not send the transaction file anywhere. The only optional outbound call is the ABR ABN lookup, and only when a GUID is set.
+- Do not send the transaction file anywhere. The only optional outbound call is the ABR ABN lookup, and only when a GUID is set. If you read a photo or PDF yourself, that file goes to the AI company behind this app. Say that before you read a bill.
+- Tell them not to zip this folder and email it.
 - Do not put a real client file, a real ABN, or a real GUID into a commit.
 - Do not change a threshold in `config/rules.toml` unless they ask. Tell them the file is where the $82.50 tax-invoice line and the $1,000 capital line live.
 - If a row in their file cannot be read, show them the row message and do not pretend the draft totals are complete.

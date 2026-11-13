@@ -30,7 +30,9 @@ def fingerprint(flag: Flag) -> str:
     return digest[:16]
 
 
-def assign_ids(flags: list[Flag]) -> None:
+def assign_ids(flags: list[Flag], remembered: dict[str, str] | None = None) -> dict[str, str]:
+    """Keep the same F-number for the same line. New lines take the next free number."""
+    remembered = dict(remembered or {})
     for flag in flags:
         flag.fingerprint = fingerprint(flag)
     order = {code: index for index, code in enumerate(CHECK_ORDER)}
@@ -42,8 +44,39 @@ def assign_ids(flags: list[Flag]) -> None:
         flag.detail_key,
         flag.fingerprint,
     ))
-    for index, flag in enumerate(flags, start=1):
-        flag.short_id = f"F-{index:02d}"
+    used = set(remembered.values())
+    next_number = 1
+    for flag in flags:
+        existing = remembered.get(flag.fingerprint)
+        if existing:
+            flag.short_id = existing
+            continue
+        while True:
+            candidate = f"F-{next_number:02d}"
+            next_number += 1
+            if candidate not in used:
+                break
+        flag.short_id = candidate
+        used.add(candidate)
+        remembered[flag.fingerprint] = candidate
+    return remembered
+
+
+def load_id_map(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): str(value) for key, value in raw.items()}
+
+
+def save_id_map(path: Path, mapping: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(mapping, indent=2), encoding="utf-8")
 
 
 def load_notes(path: Path) -> dict[str, Note]:

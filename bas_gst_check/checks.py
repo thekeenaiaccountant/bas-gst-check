@@ -11,6 +11,8 @@ from bas_gst_check.sources import GST_CREDIT, GST_FREE, PURCHASES, SALES, SOURCE
 from bas_gst_check.summarise import recorded_as_capital
 from bas_gst_check.textmatch import any_phrase
 
+WORDING_HINT = " This is a hint from the wording, not a ruling."
+
 CHECK_ORDER = (
     "unknown_side",
     "unknown_tax_code",
@@ -121,7 +123,7 @@ def _line_checks(transaction: Transaction, period: Period | None, rules: Rules) 
             "usually_no_gst",
             f"GST on {group.title.lower()}",
             "error",
-            group.why + f" This line is coded {transaction.tax_code_label} with GST of {money_text(transaction.gst)}.",
+            group.why + f" This line is coded {transaction.tax_code_label} with GST of {money_text(transaction.gst)}." + WORDING_HINT,
             "Code it GST Free, Input Taxed or BAS Excluded, as appropriate, and set the GST to zero so it does not inflate 1A or 1B.",
             group.source,
             transaction,
@@ -138,7 +140,7 @@ def _line_checks(transaction: Transaction, period: Period | None, rules: Rules) 
             "Usually taxable expense has no GST",
             "error",
             "This looks like an expense that usually includes GST (rent, software, advertising and similar), but the code says there is none. "
-            "That is right if the supplier is not registered for GST. It is a miss if they are.",
+            "That is right if the supplier is not registered for GST. It is a miss if they are." + WORDING_HINT,
             "If the supplier is registered, code it GST on Expenses and enter one-eleventh of the GST-inclusive price. If they are not registered, leave it and keep their invoice.",
             GST_FREE,
             transaction,
@@ -152,7 +154,7 @@ def _line_checks(transaction: Transaction, period: Period | None, rules: Rules) 
             "bas_excluded_taxable",
             "BAS Excluded item looks taxable",
             "error",
-            "BAS Excluded leaves a line off the BAS entirely. That fits wages, super, private drawings and transfers. This description looks like a real sale or expense.",
+            "BAS Excluded leaves a line off the BAS entirely. That fits wages, super, private drawings and transfers. This description looks like a real sale or expense." + WORDING_HINT,
             "Use GST on Income, GST on Expenses, GST Free or Input Taxed, whichever matches the tax invoice. Keep BAS Excluded for items that are not reported.",
             SALES,
             transaction,
@@ -165,7 +167,7 @@ def _line_checks(transaction: Transaction, period: Period | None, rules: Rules) 
             f"This looks like equipment or another capital item and it is {money_text(transaction.inclusive)} including GST, "
             f"over the {money_text(rules.capital_threshold)} review threshold. The account '{transaction.account}' is not a capital account, so the draft puts it at G11. "
             "Where capital purchases are not already split in the records, the ATO expects capital items costing more than $1,000 at G10. "
-            "Simpler BAS (GST turnover under $10 million) does not lodge G10 and G11, but the split still keeps the file ready.",
+            "Simpler BAS (GST turnover under $10 million) does not lodge G10 and G11, but the split still keeps the file ready." + WORDING_HINT,
             "Move it to a capital or asset account if it is plant or equipment. Leave it in expenses if it is a repair, a hire or trading stock.",
             PURCHASES,
             transaction,

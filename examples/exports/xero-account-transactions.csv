@@ -1,0 +1,5 @@
+Date,Source,Contact,Description,Reference,Account,Debit,Credit,Tax,Tax Rate
+2026-07-03,Sales invoice,Plover Shire Hall,Wayfinding concept,INV-9001,Sales,,1000.00,100.00,GST on Income
+2026-07-01,Bill,Sable Commercial,Studio rent,BILL-9001,Rent,2200.00,,220.00,GST on Expenses
+2026-07-08,Sales invoice,Amberline Publishing,Export of printed posters,INV-9002,Sales,,600.00,0.00,GST Free Income
+2026-07-15,Spend Money,Staff Wages,Fortnightly wages,SP-9001,Wages,3200.00,,0.00,BAS Excluded

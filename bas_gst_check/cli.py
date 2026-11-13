@@ -97,7 +97,7 @@ def _run(args: argparse.Namespace) -> int:
     reviews = sum(1 for flag in result.flags if flag.severity == "review")
     print(f"HTML report: {result.html_path}")
     print(f"Flagged rows: {result.csv_path}")
-    print(f"Flags: {errors} likely mistakes, {reviews} tax-invoice reminders.")
+    print(f"Lines to fix: {errors}. Tax invoices to have on file: {reviews}. Those reminders are not mistakes.")
     if result.summary:
         print(
             f"Draft net GST: {result.summary.net} "

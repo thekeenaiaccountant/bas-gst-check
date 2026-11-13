@@ -1,6 +1,8 @@
 # bas-gst-check
 
-Check a quarter of GST figures before the BAS is lodged, and see the likely mistakes.
+Open this folder in Claude Code or Codex (File, Open Folder, then this folder). You do not download anything else and you do not use a terminal. Then type `Set up BAS GST check`.
+
+Check a quarter of GST figures before the BAS is lodged, and see the likely mistakes. This is the GST part of the BAS only.
 
 ![Draft BAS report for the fictional example, using the navy and pink preset](docs/screenshot.png)
 
@@ -12,7 +14,9 @@ This copy is private for now. Do not publish the repository. The licence, when y
 
 ## Start here
 
-Open this folder in Claude Code or Codex. You do not need the terminal. Type:
+If the app says Python is missing, it should try `python3`. On a Mac, install Python from python.org if neither `python` nor `python3` works. On Windows, install Python from python.org and tick "Add python.exe to PATH".
+
+Type:
 
 ```text
 Set up BAS GST check
@@ -40,7 +44,7 @@ or:
 Mark flag F-04 as ignored. Note: tax invoice is on file and the GST is correct.
 ```
 
-Use the id from the report you are looking at. The next run shows what changed, and it repeats your note. Notes stay in a folder on this computer (`.local/`). Nothing in the transaction file is uploaded.
+Use the id from the report you are looking at. The same line keeps the same number next time. Notes stay in a folder on this computer (`.local/`). This checker uploads nothing. A photo or PDF that Claude or Codex reads is sent to that AI company. Do not zip this folder and email it.
 
 ## What the report shows
 
@@ -53,11 +57,26 @@ Use the id from the report you are looking at. The next run shows what changed, 
 
 The draft uses the amounts in the file. It does not silently rewrite them. GST adjustments such as bad debts or private use are not included. Cash basis means the file should be amounts you received or paid in the period. Accrual basis means invoices and bills for the period. The tool does not invent a second date.
 
+## Get the file out of the accounting program
+
+Use the same dates as the BAS, and the same cash or accrual basis you lodge on.
+
+**Xero.** Open the Reporting menu, choose All reports, and search for Account Transactions. Set the dates. Under More, choose Cash or Accrual to match the BAS. Update the report, then export it to Excel. [Xero: report settings, including export](https://central.xero.com/s/article/Select-contents-and-display-order-in-a-new-report).
+
+**MYOB.** Open Reporting, then GST/Tax, and run the GST detail report for the period (accrual/invoice or cash/payments, matching the BAS). Export that report. You can also export the sales and purchases journals from Settings, Import and export data, Export. [MYOB: GST reports](https://www.myob.com/au/support/myob-business/reporting/gst-tax-reports). [MYOB: export options](https://www.myob.com/au/support/myob-business/import-export/exporting-data/export-options).
+
+**QuickBooks Online.** Go to Reports, Standard reports, and search for GST Details or BAS Detail. Set the From and To dates. Choose Export/Print, then Export to Excel. [QuickBooks: export a report to Excel](https://quickbooks.intuit.com/learn-support/en-au/help-article/report-management/export-reports-excel-quickbooks-online/L7iAoP97n_AU_en_AU). [QuickBooks: BAS detail report](https://quickbooks.intuit.com/learn-support/en-au/help-article/tax-reports/bas-detail-report/L9212o1SU_AU_en_AU).
+
+Excel files (`.xlsx`) are read directly. If one will not open, in Excel choose File, Save As, and pick CSV.
+
+Made-up samples, not real businesses, are in `examples/exports/`.
+
 ## Your file
 
-Use JSON or CSV. Each row needs a date, whether it is a sale or a purchase, a contact, a description, an account, a net amount, a GST amount, and a tax code. A supplier ABN column is optional and is used only by the ABN check.
+Use JSON, CSV or Excel. Each row needs a date, whether it is a sale or a purchase, a contact, a description, an account, a net amount, a GST amount, and a tax code. Debit and credit columns are fine when there is also a tax column. A supplier ABN column is optional. The ABN that matters is the one printed on the bill.
 
-Tax codes it understands: GST on Income, GST on Expenses, GST on Capital, GST Free, BAS Excluded, Input Taxed.
+Tax codes it understands include the Xero names (GST on Income, GST on Expenses, GST Free, BAS Excluded, Input Taxed, GST on Capital), the MYOB short names (GST, FRE, N-T, CAP, INP, EXP) and the QuickBooks names (GST, GST Free, Out of Scope). A code it does not know is listed in the report and left out of the draft. That is a warning, not a nil BAS.
+
 
 The made-up quarter is `examples/fennel-street-workshop.json` (1 July 2026 to 30 September 2026). `examples/fennel-street-workshop.csv` is the same quarter. The JSON file already names the period. For a CSV, say which dates the file covers.
 

@@ -21,8 +21,16 @@ from bas_gst_check.learning import (
 )
 from bas_gst_check.loaders import LoadedFile, load_transactions
 from bas_gst_check.models import Flag, Period, Summary
-from bas_gst_check.report import PRESET, render_html, write_csv
-from bas_gst_check.review_log import assign_ids, compare, load_notes, load_previous, save_previous
+from bas_gst_check.report import PRESET, render_error_html, render_html, write_csv
+from bas_gst_check.review_log import (
+    assign_ids,
+    compare,
+    load_id_map,
+    load_notes,
+    load_previous,
+    save_id_map,
+    save_previous,
+)
 from bas_gst_check.rules import Rules, load_rules
 from bas_gst_check.settings import Settings, load_settings
 from bas_gst_check.summarise import summarise
@@ -70,14 +78,21 @@ def execute(
     loaded = load_transactions(source, active_rules)
     output = output_dir or Path("output")
     state = state_dir or Path(".local")
+    business = active_settings.business_name or loaded.business_name or "This business"
     if loaded.errors:
-        return RunResult(None, None, loaded.errors, None, [], "off")
+        html_path = _write_failure(output, business, loaded.errors)
+        return RunResult(html_path, None, loaded.errors, None, [], "off")
 
     period, warning = _resolve_period(loaded, active_settings, period_start, period_end)
-    if period is not None:
-        warning = " ".join(part for part in (warning, _length_warning(period, active_settings.bas_period)) if part)
+    if period is None:
+        missing = [
+            "Which quarter is this file? For example, 1 July 2026 to 30 September 2026. "
+            "The figures are not calculated until you name the period. Nothing was guessed from the dates in the file."
+        ]
+        html_path = _write_failure(output, business, missing)
+        return RunResult(html_path, None, missing, None, [], "off")
+    warning = " ".join(part for part in (warning, _length_warning(period, active_settings.bas_period)) if part)
     basis = _basis(active_settings, loaded)
-    business = active_settings.business_name or loaded.business_name or "This business"
     summary = summarise(loaded.transactions, active_rules)
     flags = run_checks(loaded.transactions, period, active_rules)
     bill_folder = _bills_folder(source, bills_dir)
@@ -104,11 +119,11 @@ def execute(
     )
     flags.extend(abr.flags)
     notes = load_notes(state / "review-log.json")
-    assign_ids(flags)
+    remembered = load_id_map(state / "flag-ids.json")
+    remembered = assign_ids(flags, remembered)
+    save_id_map(state / "flag-ids.json", remembered)
     previous = load_previous(state / "last-run.json")
     comparison = compare(previous, summary, flags)
-    if period is None:
-        return RunResult(None, None, ["Set a start and end date for this BAS period."], summary, flags, abr.mode)
 
     brand_overrides, brand_note = _brand(active_settings)
     if brand_note:
@@ -176,14 +191,14 @@ def _resolve_period(
         return Period(settings.period_start, settings.period_end), ""
     if loaded.period_start and loaded.period_end:
         return Period(loaded.period_start, loaded.period_end), ""
-    if not loaded.transactions:
-        return None, ""
-    inferred_start = min(item.date for item in loaded.transactions)
-    inferred_end = max(item.date for item in loaded.transactions)
-    return (
-        Period(inferred_start, inferred_end, inferred=True),
-        "The period was taken from the earliest and latest dates in the file, so a transaction outside the real quarter would not be flagged. Set the quarter before you rely on that check.",
-    )
+    return None, ""
+
+
+def _write_failure(output: Path, business: str, errors: list[str]) -> Path:
+    output.mkdir(parents=True, exist_ok=True)
+    html_path = output / "bas-gst-check.html"
+    html_path.write_text(render_error_html(business or "This business", errors), encoding="utf-8")
+    return html_path
 
 
 def _length_warning(period: Period, bas_period: str) -> str:
