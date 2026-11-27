@@ -10,7 +10,40 @@ Check a quarter of GST figures before the BAS is lodged, and see the likely mist
 
 The picture uses the Pooja K preset: a white page, navy text, and a little pink. Until you choose a brand, the report uses the paper-and-ink default. **Every name, amount and ABN in the example is made up.** Fennel Street Workshop is not a real business.
 
-This copy is private for now. Do not publish the repository. The licence, when you do share it, is MIT.
+Free and open source (MIT). Uses made-up demo data only. No real client data.
+
+## How it works
+
+🟩 = automatic, 🩷 = I decide
+
+```mermaid
+flowchart LR
+  open["📂 Open this folder<br/>in Claude or Codex"]:::ask
+  setup["💬 Set up<br/>the BAS GST check"]:::ask
+  source{"📄 Example data<br/>or your export?"}:::ask
+  export["📤 Export the period<br/>from Xero, MYOB or QBO"]:::ask
+  run["⚙️ Load the file<br/>and run the checks"]:::ok
+  bills{"📎 Folder of<br/>bill PDFs?"}:::ask
+  match["📄 Read ABNs<br/>and match to lines"]:::ok
+  guid{"🔑 ABR GUID<br/>saved?"}:::ask
+  abr["🔎 Check GST<br/>registration"]:::ok
+  report["📊 Write the HTML<br/>and CSV report"]:::ok
+  review["👀 Review each flag<br/>and mark fixed or ignored"]:::ask
+  lodge["🙅 Confirm with an agent<br/>before you lodge"]:::ask
+
+  open --> setup --> source
+  source -->|example| run
+  source -->|your file| export --> run
+  run --> bills
+  bills -->|yes| match --> guid
+  bills -->|no| guid
+  guid -->|yes| abr --> report
+  guid -->|no| report
+  report --> review --> lodge
+
+  classDef ok fill:#e6f4ea,stroke:#5b8f6b;
+  classDef ask fill:#fde7f1,stroke:#D6337A;
+```
 
 ## Xero: export first
 
